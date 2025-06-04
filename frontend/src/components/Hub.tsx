@@ -43,6 +43,7 @@ import ProfileSettings from './ProfileSettings';
 import { access } from 'fs';
 import { User } from '../contexts/AuthContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 export interface File {
   id: number;
@@ -209,6 +210,7 @@ const apiService = {
 
 const Hub: React.FC<HubProps> = ({ user, setUser, initialUsers = [], initialSchedules = [] }) => {
   const navigate = useNavigate();
+  const { darkMode } = useTheme();
   const [files, setFiles] = useState<File[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -490,13 +492,12 @@ const Hub: React.FC<HubProps> = ({ user, setUser, initialUsers = [], initialSche
       file.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [files, searchQuery]);
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       {/* Navbar (Header) */}
-      <header className="fixed top-0 left-0 right-0 bg-white shadow-lg z-50">
+      <header className="fixed top-0 left-0 right-0 bg-white dark:bg-gray-800 shadow-lg z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h1 className="text-2xl font-bold text-indigo-900">SecCollab - Share Securely</h1>
+          <h1 className="text-2xl font-bold text-indigo-900 dark:text-white">SecCollab - Share Securely</h1>
           <div className="flex items-center gap-3">
             {user.mfa_enabled ? (
               <button
@@ -541,25 +542,23 @@ const Hub: React.FC<HubProps> = ({ user, setUser, initialUsers = [], initialSche
         <ChevronRight className={`w-6 h-6 transform ${sidebarOpen ? 'rotate-180' : ''} transition-transform`} />
       </button>
 
-      <div className="flex min-h-screen pt-16">
-        {/* Sidebar */}
-        <aside className={`fixed top-16 bottom-0 left-0 w-64 bg-indigo-900 text-white p-6 space-y-6 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:transform-none lg:static transition-transform duration-300 ease-in-out z-30 shadow-2xl`}>
+      <div className="flex min-h-screen pt-16">        {/* Sidebar */}
+        <aside className={`fixed top-16 bottom-0 left-0 w-64 bg-indigo-900 dark:bg-gray-900 text-white p-6 space-y-6 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:transform-none lg:static transition-transform duration-300 ease-in-out z-30 shadow-2xl`}>
           <div className="flex items-center space-x-3">
             <div className="text-2xl font-extrabold tracking-tight">SecCollab</div>
-          </div>
-          <nav className="space-y-1">
+          </div><nav className="space-y-1">
             {[
               { name: 'Home', icon: Home, path: '/hub' },
               { name: 'Users', icon: Users, path: '/users' },
               { name: 'Dashboard', icon: DashboardIcon, path: '/dashboard' },
               { name: 'Statistics', icon: BarChart, path: '/stats' },
+              { name: 'Settings', icon: Settings, path: '/settings' },
               { name: 'Schedules', icon: Calendar, path: '/schedules' },
               { name: 'Schedule Meeting', icon: PlusCircle, action: () => setShowScheduleDialog(true) },
-            ].map(item => (
-              <button
+            ].map(item => (              <button
                 key={item.name}
                 onClick={item.path ? () => navigate(item.path) : item.action}
-                className="flex items-center w-full px-4 py-2 text-sm font-medium rounded-lg hover:bg-indigo-800 transition-colors"
+                className="flex items-center w-full px-4 py-2 text-sm font-medium rounded-lg hover:bg-indigo-800 dark:hover:bg-gray-700 transition-colors"
               >
                 <item.icon className="w-5 h-5 mr-3" />
                 {item.name}
@@ -590,16 +589,15 @@ const Hub: React.FC<HubProps> = ({ user, setUser, initialUsers = [], initialSche
               <div className="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center border-2 border-indigo-300 shadow-sm">
                 <span className="text-xl font-medium text-white">{user.name.charAt(0).toUpperCase()}</span>
               </div>
-            )}
-            <h2 className="text-2xl font-semibold text-gray-900 leading-relaxed">Welcome, {user.name}</h2>
+            )}            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white leading-relaxed">Welcome, {user.name}</h2>
           </div>
 
           {/* File Section */}
           <div className="space-y-8">
             {/* Upload Section */}
-            <div className="bg-white rounded-xl shadow-md p-8 border border-gray-100">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-8 border border-gray-100 dark:border-gray-700">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                <h3 className="text-xl font-semibold text-gray-900 leading-relaxed">Upload Files</h3>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white leading-relaxed">Upload Files</h3>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -623,40 +621,37 @@ const Hub: React.FC<HubProps> = ({ user, setUser, initialUsers = [], initialSche
                   />
                 </div>
               )}
-            </div>
-
-            {/* File List */}
-            <div className="bg-white rounded-xl shadow-md border border-gray-100">
-              <div className="px-8 py-6 border-b border-gray-100">
-                <h3 className="text-xl font-semibold text-gray-900 leading-relaxed">Your Files</h3>
+            </div>            {/* File List */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700">
+              <div className="px-8 py-6 border-b border-gray-100 dark:border-gray-700">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white leading-relaxed">Your Files</h3>
                 {/* Search Bar */}
                 <div className="mt-4 relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Search className="w-5 h-5 text-gray-400" />
+                    <Search className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                   </div>
                   <input
                     type="text"
                     placeholder="Search files..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="block w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200"
+                    className="block w-full pl-12 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200"
                   />
                 </div>
               </div>
-              <ul className="divide-y divide-gray-100">
+              <ul className="divide-y divide-gray-100 dark:divide-gray-700">
                 {files.length === 0 ? (
-                  <li className="px-8 py-10 text-center text-gray-500 text-lg">No files uploaded yet</li>
+                  <li className="px-8 py-10 text-center text-gray-500 dark:text-gray-400 text-lg">No files uploaded yet</li>
                 ) : (
                   filteredFiles.map(file => (
                     <li
                       key={file.id}
-                      className="px-8 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-gray-50 transition-all"
-                    >
-                      <div className="flex items-center gap-4">
-                        <FileText className="w-6 h-6 text-gray-400" />
+                      className="px-8 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                    >                      <div className="flex items-center gap-4">
+                        <FileText className="w-6 h-6 text-gray-400 dark:text-gray-500" />
                         <div>
-                          <p className="text-lg font-medium text-gray-900 leading-relaxed">{file.name}</p>
-                          <p className="text-base text-gray-500 leading-relaxed">
+                          <p className="text-lg font-medium text-gray-900 dark:text-white leading-relaxed">{file.name}</p>
+                          <p className="text-base text-gray-500 dark:text-gray-400 leading-relaxed">
                             {formatFileSize(file.size)} • Uploaded {new Date(file.created_at).toLocaleDateString()}
                           </p>
                         </div>
@@ -664,13 +659,13 @@ const Hub: React.FC<HubProps> = ({ user, setUser, initialUsers = [], initialSche
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => { setSelectedFile(file); setShowChat(true); }}
-                          className="p-2 text-gray-600 hover:text-gray-900 transition-all"
+                          className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-all"
                         >
                           <MessageSquare className="w-6 h-6" />
                         </button>
                         <button
                           onClick={() => handleDownload(file)}
-                          className="p-2 text-gray-600 hover:text-gray-900 transition-all"
+                          className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-all"
                         >
                           <Download className="w-6 h-6" />
                         </button>
@@ -699,18 +694,16 @@ const Hub: React.FC<HubProps> = ({ user, setUser, initialUsers = [], initialSche
                   ))
                 )}
               </ul>
-            </div>
-
-            {/* Recent Activity Section */}
-            <div className="bg-white rounded-xl shadow-md p-8 border border-gray-100">
-              <h3 className="text-xl font-semibold text-gray-900 mb-6 leading-relaxed">Recent Activity</h3>
+            </div>            {/* Recent Activity Section */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-8 border border-gray-100 dark:border-gray-700">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 leading-relaxed">Recent Activity</h3>
               <ActivityFeed activities={activities} />
             </div>
 
             {/* File Chat (if active) */}
             {selectedFile && showChat && (
-              <div className="bg-white rounded-xl shadow-md p-8 border border-gray-100">
-                <h3 className="text-xl font-semibold text-gray-900 mb-6 leading-relaxed">File Chat</h3>
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-8 border border-gray-100 dark:border-gray-700">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 leading-relaxed">File Chat</h3>
                 <FileChat
                   fileId={selectedFile.id}
                   messages={messages}

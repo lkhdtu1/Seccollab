@@ -597,14 +597,29 @@ def update_profile():
         current_user_id = get_jwt_identity()
         user = User.query.get_or_404(current_user_id)
         
-        data = request.form
+        # Handle both JSON and multipart form data
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form
         
         if 'name' in data:
             user.name = data['name']
+        if 'email' in data and data['email'] != user.email:
+            # Check if email is already taken
+            existing_user = User.query.filter_by(email=data['email']).first()
+            if existing_user:
+                return jsonify({'error': 'Email already in use'}), 409
+            user.email = data['email']
         if 'avatar' in data:
             user.avatar_url = data['avatar']
             
+        # Update password changed timestamp
+        user.password_changed_at = datetime.utcnow()
         db.session.commit()
+        
+        # Log the action
+        log_action('UPDATE_PROFILE', current_user_id, f"Profile updated: {user.email}")
         
         return jsonify({
             'message': 'Profile updated successfully',
@@ -612,13 +627,51 @@ def update_profile():
                 'id': user.id,
                 'name': user.name,
                 'email': user.email,
-                'avatar_url': user.avatar_url
+                'avatar_url': user.avatar_url,
+                'mfa_enabled': user.mfa_enabled
             }
         })
     except Exception as e:
         db.session.rollback()
         print(f"Error updating profile: {str(e)}")
         return jsonify({'error': 'Failed to update profile'}), 500
+
+@auth_bp.route('/change-password', methods=['POST'])
+@jwt_required()
+def change_password():
+    """Change user password with verification."""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get_or_404(current_user_id)
+        
+        data = request.get_json()
+        
+        if not all(k in data for k in ('current_password', 'new_password')):
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        # Verify current password
+        if not check_password(data['current_password'], user.password):
+            log_action('FAILED_PASSWORD_CHANGE', current_user_id, f"Failed password change attempt: incorrect current password")
+            return jsonify({'error': 'Current password is incorrect'}), 401
+        
+        # Validate new password
+        if len(data['new_password']) < 8:
+            return jsonify({'error': 'New password must be at least 8 characters long'}), 400
+        
+        # Hash and update password
+        user.password = hash_password(data['new_password'])
+        user.password_changed_at = datetime.utcnow()
+        db.session.commit()
+        
+        # Log the action
+        log_action('PASSWORD_CHANGED', current_user_id, f"Password changed successfully")
+        
+        return jsonify({'message': 'Password changed successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error changing password: {str(e)}")
+        return jsonify({'error': 'Failed to change password'}), 500
 
 def allowed_file(filename):
     """Check if file type is allowed for avatars."""

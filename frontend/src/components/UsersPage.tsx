@@ -3,6 +3,7 @@ import {
   Search, Users, Calendar, FileText, Settings, LogOut, ChevronDown, ChevronRight, BarChart,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import axios from 'axios';
 import { API_BASE_URL } from './config/config';
 import { useNavigate } from 'react-router-dom';
