@@ -1,15 +1,38 @@
 """Authentication routes for the application."""
-from flask import Blueprint, request, jsonify, current_app, url_for, session,redirect
-from authlib.integrations.flask_client import OAuth
+import os
+import re
+import secrets
+import bcrypt
+import json
+import pyotp
+import qrcode
+import io
+import base64
+import requests
+from datetime import datetime, timedelta
+
+import bleach
+from dotenv import load_dotenv
+from flask import Blueprint, request, jsonify, current_app, url_for, session, redirect
 from flask_jwt_extended import (
     create_access_token, create_refresh_token, 
     get_jwt_identity, jwt_required, get_jwt
 )
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-import re
-from datetime import datetime, timedelta
-import bleach
+from flask_mail import Message, Mail
+from authlib.integrations.flask_client import OAuth
+from oauthlib.oauth2 import WebApplicationClient
+from werkzeug.urls import url_parse
+from werkzeug.utils import secure_filename
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+from app.models.user import User, db
+from app.utils.logging import log_action
+from app.utils.captcha import verify_captcha_for_action
+from app.config.config import Config
+from app.utils.security import hash_password, check_password
 
 # Initialize rate limiter
 limiter = Limiter(
@@ -31,25 +54,6 @@ def sanitize_input(data):
     elif isinstance(data, list):
         return [sanitize_input(i) for i in data]
     return data
-
-
-
-
-from app.models.user import User, db
-from datetime import datetime, timedelta
-import secrets
-from flask_mail import Message, Mail
-import os
-from werkzeug.urls import url_parse
-from dotenv import load_dotenv
-from flask import redirect, url_for
-from app.utils.logging import log_action
-from oauthlib.oauth2 import WebApplicationClient
-from app.config.config import Config
-from app.utils.security import hash_password, check_password
-import bcrypt
-from werkzeug.urls import url_parse
-from werkzeug.utils import secure_filename
 auth_bp = Blueprint('auth', __name__)
 load_dotenv("test.env")
 mail = Mail()
@@ -70,29 +74,47 @@ client = oauth.register(
 @auth_bp.route('/register', methods=['POST'])
 @limiter.limit("5 per hour")
 def register():
-    """Register a new user with enhanced security."""
+    """Register a new user with enhanced security and CAPTCHA."""
     data = request.get_json()
     data = sanitize_input(data)
     
     if not all(k in data for k in ('email', 'password', 'name')):
         return jsonify({'error': 'Missing required fields'}), 400
     
-    if not validate_email(data['email']):
+    # Verify CAPTCHA
+    captcha_token = data.get('captcha_token')
+    if not captcha_token:
+        return jsonify({'error': 'CAPTCHA verification required'}), 400
+    
+    from app.utils.captcha import verify_captcha_for_action
+    captcha_result = verify_captcha_for_action(
+        captcha_token, 
+        'register', 
+        request.environ.get('REMOTE_ADDR')
+    )
+    
+    if not captcha_result['success']:
+        return jsonify({'error': f'CAPTCHA verification failed: {captcha_result.get("error", "Unknown error")}'}), 400
+    
+    # Normalize email to lowercase
+    email = data['email'].lower().strip()
+    
+    if not validate_email(email):
         return jsonify({'error': 'Invalid email format'}), 400
         
     if len(data['password']) < 8:
         return jsonify({'error': 'Password must be at least 8 characters long'}), 400
 
-    # Check if user already exists
-    if User.get_by_email(data.get('email')):
+    # Check if user already exists (case-insensitive)
+    if User.email_exists(email):
         return jsonify({'error': 'Email already registered'}), 409
     
      # Hacher le mot de passe
     hashed_password = hash_password(data['password'])
     
-    # Create new user
+    # Create new user with normalized email
     user = User(
-        email=data['email'],
+        email=email,
         password=hashed_password,
         name=data['name']
     )
@@ -104,17 +126,45 @@ def register():
     # Log the action
     from app.utils.logging import log_action
     log_action('REGISTER', user.id, f"New user registered: {user.email}")
-    
+      # Create tokens for auto-login after registration
+    access_token = create_access_token(
+        identity=str(user.id),
+        expires_delta=timedelta(hours=12)
+    )
+    refresh_token = create_refresh_token(
+        identity=str(user.id),
+        expires_delta=timedelta(days=30)
+    )
+
     return jsonify({
         'message': 'User registered successfully',
-        'user': user.to_dict()
+        'user': user.to_dict(),
+        'access_token': access_token,
+        'refresh_token': refresh_token
     }), 201
 
 @auth_bp.route('/forgot-password', methods=['POST'])
 def forgot_password():
-    """Initiate password reset process."""
+    """Initiate password reset process with CAPTCHA verification."""
     data = request.get_json()
-    email = data.get('email')
+    
+    # Verify CAPTCHA
+    captcha_token = data.get('captcha_token')
+    if not captcha_token:
+        return jsonify({'error': 'CAPTCHA verification required'}), 400
+    
+    from app.utils.captcha import verify_captcha_for_action
+    captcha_result = verify_captcha_for_action(
+        captcha_token, 
+        'forgot_password', 
+        request.environ.get('REMOTE_ADDR')
+    )
+    
+    if not captcha_result['success']:
+        return jsonify({'error': f'CAPTCHA verification failed: {captcha_result.get("error", "Unknown error")}'}), 400
+    
+    # Normalize email to lowercase for lookup
+    email = data.get('email', '').lower().strip()
     user = User.get_by_email(email)
     
     if not user:
@@ -186,7 +236,9 @@ def login():
     if not all(k in data for k in ('email', 'password')):
         return jsonify({'error': 'Missing required fields'}), 400
     
-    user = User.query.filter_by(email=data['email']).first()
+    # Normalize email to lowercase for lookup
+    email = data['email'].lower().strip()
+    user = User.get_by_email(email)
     
     if not user or not check_password(data['password'], user.password):
         return jsonify({'error': 'Invalid email or password'}), 401
@@ -285,33 +337,11 @@ def logout():
     """Logout user by revoking tokens."""
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
-    
-    # Log the action
+      # Log the action
     from app.utils.logging import log_action
     log_action('LOGOUT', current_user_id, f"User logged out: {user.email}")
     
-    return jsonify({'message': 'Successfully logged out'}),200
-
-
-"""Authentication routes for the application."""
-from flask import Blueprint, request, jsonify, current_app, url_for
-from flask_jwt_extended import (
-    create_access_token, create_refresh_token, 
-    get_jwt_identity, jwt_required
-)
-import requests
-import json
-import pyotp
-import qrcode
-import io
-import base64
-from werkzeug.urls import url_parse
-from app.models.user import User, db
-from datetime import datetime, timedelta
-import secrets
-from flask_mail import Message, Mail
-
-
+    return jsonify({'message': 'Successfully logged out'}), 200
 
 @auth_bp.route('/mfa/setup', methods=['GET'])
 @jwt_required()
@@ -440,9 +470,7 @@ def mfa_verify():
                 'avatar_url': user.avatar_url if hasattr(user, 'avatar_url') else None
             },
             'expires_in': 43200  # 12 hours in seconds
-        }
-
-        # Handle remember device option
+        }        # Handle remember device option
         if data.get('remember_device'):
             device_id = secrets.token_urlsafe(32)
             user.add_trusted_device(
@@ -467,32 +495,6 @@ def mfa_verify():
     except Exception as e:
         print(f"MFA verification error: {str(e)}")
         return jsonify({'error': 'MFA verification failed'}), 500
-    
-    
-    
-    
-    
-    
-    
-from flask import Blueprint, current_app, request, url_for, jsonify, session, redirect
-from authlib.integrations.flask_client import OAuth
-from app.models.user import User, db
-from flask_jwt_extended import create_access_token, create_refresh_token
-import os
-from flask import Blueprint, current_app, jsonify, redirect, url_for
-from authlib.integrations.flask_client import OAuth
-
-import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
-
-
-
-oauth = OAuth()
-
-
-
-
 
 def get_google_auth_url():
     """Get Google OAuth URL without DNS discovery"""
@@ -602,15 +604,17 @@ def update_profile():
             data = request.get_json()
         else:
             data = request.form
-        
+            
         if 'name' in data:
             user.name = data['name']
         if 'email' in data and data['email'] != user.email:
-            # Check if email is already taken
-            existing_user = User.query.filter_by(email=data['email']).first()
-            if existing_user:
+            # Normalize the new email
+            new_email = data['email'].lower().strip()
+            
+            # Check if email is already taken (case-insensitive)
+            if User.email_exists(new_email):
                 return jsonify({'error': 'Email already in use'}), 409
-            user.email = data['email']
+            user.email = new_email
         if 'avatar' in data:
             user.avatar_url = data['avatar']
             

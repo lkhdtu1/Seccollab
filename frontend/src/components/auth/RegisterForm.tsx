@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail, User, Lock } from 'lucide-react';
 import { register } from '../services/authService';
+import Captcha, { CaptchaHandle } from '../common/CaptchaComponent';
 
 const RegisterForm: React.FC = () => {
   const navigate = useNavigate();
+  const captchaRef = useRef<CaptchaHandle>(null);
   const [formData, setFormData] = useState({
     email: '',
     name: '',
@@ -14,14 +16,14 @@ const RegisterForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [name]: name === 'email' ? value.toLowerCase().trim() : value
     }));
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -30,15 +32,26 @@ const RegisterForm: React.FC = () => {
       return;
     }
 
+    if (!captchaToken) {
+      setError('Please complete the CAPTCHA verification');
+      return;
+    }
+
     setIsLoading(true);
     setError('');
 
-    try {
-      await register({
+    try {      const response = await register({
         email: formData.email,
         name: formData.name,
-        password: formData.password
+        password: formData.password,
+        captcha_token: captchaToken // This key matches what the backend expects
       });
+      
+      // Store tokens and user data
+      if (response.access_token) {
+        sessionStorage.setItem('access_token', response.access_token);
+        sessionStorage.setItem('refresh_token', response.refresh_token);
+      }
       
       // Redirect to login page after successful registration
       navigate('/login', { 
@@ -46,6 +59,11 @@ const RegisterForm: React.FC = () => {
       });
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.');
+      // Reset CAPTCHA on error
+      if (captchaRef.current) {
+        captchaRef.current.reset();
+        setCaptchaToken(null);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -150,6 +168,22 @@ const RegisterForm: React.FC = () => {
               onChange={handleChange}
             />
           </div>
+        </div>
+
+        {/* CAPTCHA Component */}
+        <div className="mb-4">
+          <Captcha
+            ref={captchaRef}
+            onVerify={setCaptchaToken}
+            onError={() => {
+              setError('CAPTCHA verification failed. Please try again.');
+              setCaptchaToken(null);
+            }}
+            onExpired={() => setCaptchaToken(null)}
+            action="register" // Explicitly set the action to 'register'
+            version="v3"
+            autoExecute={true}
+          />
         </div>
 
         <div>

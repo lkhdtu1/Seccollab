@@ -1,26 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail } from 'lucide-react';
 import { requestPasswordReset } from '../services/authService';
+import Captcha, { CaptchaHandle } from '../common/CaptchaComponent';
 
 const ForgotPassword: React.FC = () => {
   const navigate = useNavigate();
+  const captchaRef = useRef<CaptchaHandle>(null);
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!captchaToken) {
+      setError('Please complete the CAPTCHA verification');
+      return;
+    }
+
     setIsLoading(true);
     setError('');
     setMessage('');
 
     try {
-      await requestPasswordReset(email);
+      await requestPasswordReset(email, captchaToken);
       setMessage('If an account exists with this email, you will receive password reset instructions.');
     } catch (err: any) {
       setError(err.message || 'Failed to send reset email. Please try again.');
+      // Reset CAPTCHA on error
+      if (captchaRef.current) {
+        captchaRef.current.reset();
+        setCaptchaToken(null);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -60,12 +73,22 @@ const ForgotPassword: React.FC = () => {
               type="email"
               autoComplete="email"
               required
-              className="appearance-none rounded-md relative block w-full px-3 py-2 pl-10 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              placeholder="Email address"
+              className="appearance-none rounded-md relative block w-full px-3 py-2 pl-10 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"              placeholder="Email address"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
+              onChange={(e) => setEmail(e.target.value.toLowerCase().trim())}
+            />          </div>
+        </div>        {/* CAPTCHA Component */}
+        <div className="mb-4">
+          <Captcha
+            ref={captchaRef}
+            onVerify={setCaptchaToken}
+            onError={() => {
+              setError('CAPTCHA verification failed. Please try again.');
+              setCaptchaToken(null);
+            }}
+            action="forgot_password"
+            version="v3"
+          />
         </div>
 
         <div className="flex items-center justify-between">

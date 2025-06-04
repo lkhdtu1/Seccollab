@@ -19,6 +19,7 @@ import UsersPage from '../components/UsersPage';
 import { Theme } from 'emoji-picker-react';
 import StatsPage from '../components/StatsPage';
 import AuthCallback from '../components/auth/AuthCallback';
+import TestCaptcha from '../components/TestCaptcha';
 const AppRoutes: React.FC = () => {
   const navigate = useNavigate();
   const { user, setUser, loading } = useAuth();
@@ -145,8 +146,9 @@ const AppRoutes: React.FC = () => {
             <UsersPage />
           </ProtectedRoute>
         }
-      />
-      <Route path="/auth/callback" element={<AuthCallback />} />          <Route path="/settings" element={<ProtectedRoute isAuthenticated={isAuthenticated}><SettingsPage /></ProtectedRoute>} />
+      />          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/test-captcha" element={<TestCaptcha />} />
+          <Route path="/settings" element={<ProtectedRoute isAuthenticated={isAuthenticated}><SettingsPage /></ProtectedRoute>} />
           <Route path="/stats" element={<ProtectedRoute isAuthenticated={isAuthenticated}><StatsPage /></ProtectedRoute>} />
           {/* Default Route */}
           <Route path="/"  element={<Navigate to={isAuthenticated ? "/hub" : "/login"} replace />} />

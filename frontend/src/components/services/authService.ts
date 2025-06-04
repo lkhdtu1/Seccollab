@@ -98,7 +98,7 @@ export const logout = async () => {
   await safeLogout();
 };
 // User registration
-export const register = async (userData: { email: string; password: string; name: string }) => {
+export const register = async (userData: { email: string; password: string; name: string; captcha_token?: string }) => {
   try {
     const { data } = await axios.post('/auth/register', userData);
     return data;
@@ -115,7 +115,10 @@ export const login = async (credentials: {
   remember_device?: boolean;
 }): Promise<AuthResponse> => {
   try {
-    const { data } = await axios.post(`${API_BASE_URL}/auth/login`, credentials);
+    const { data } = await axios.post(`${API_BASE_URL}/auth/login`, {
+      ...credentials,
+      email: credentials.email.toLowerCase().trim()
+    });
 
     // Check explicitly for MFA requirement
     if (data.mfa_required) {
@@ -276,9 +279,12 @@ export const verifyMfaCode = async (verificationData: { user_id: string; code: s
 };*/
 
 // Password reset request
-export const requestPasswordReset = async (email: string) => {
+export const requestPasswordReset = async (email: string, captcha_token?: string) => {
   try {
-    const { data } = await axios.post('/auth/forgot-password', { email });
+    const { data } = await axios.post('/auth/forgot-password', { 
+      email: email.toLowerCase().trim(), 
+      captcha_token 
+    });
     return data;
   } catch (error) {
     throw handleError(error);

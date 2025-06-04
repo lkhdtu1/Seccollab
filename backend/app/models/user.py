@@ -85,9 +85,20 @@ class User(db.Model):
     # Schedule relationships
     created_schedules = db.relationship('Schedule', backref='creator', lazy='dynamic')
     schedule_participations = db.relationship('ScheduleParticipant', backref='user', lazy='dynamic')
-    schedule_notifications = db.relationship('ScheduleNotification', backref='user', lazy='dynamic')
-  '''  # Remember device functionality
+    schedule_notifications = db.relationship('ScheduleNotification', backref='user', lazy='dynamic')  '''  # Remember device functionality
     trusted_devices = db.relationship('TrustedDevice', backref='user', lazy='dynamic')
+    
+    def __init__(self, email=None, password=None, name=None, **kwargs):
+        """Initialize user with normalized email."""
+        if email:
+            self.email = email.lower().strip()
+        if password:
+            self.password = password
+        if name:
+            self.name = name
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+    
     def set_password(self, password):
             """Set user password."""
             self.password = generate_password_hash(password)
@@ -165,12 +176,19 @@ class User(db.Model):
         db.session.add(trusted_device)
         
         return device_id
-    
-
     @classmethod
     def get_by_email(cls, email):
-        """Find a user by email."""
-        return cls.query.filter_by(email=email).first()
+        """Find a user by email (case-insensitive)."""
+        if not email:
+            return None
+        return cls.query.filter(cls.email.ilike(email.strip())).first()
+    
+    @classmethod
+    def email_exists(cls, email):
+        """Check if email exists in database (case-insensitive)."""
+        if not email:
+            return False
+        return cls.query.filter(cls.email.ilike(email.strip())).first() is not None
     
     @classmethod
     def get_by_google_id(cls, google_id):
