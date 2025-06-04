@@ -1,0 +1,31 @@
+version: '3'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+      - ./uploads:/app/uploads
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=production
+      - SECRET_KEY=change-this-in-production
+      - JWT_SECRET_KEY=change-this-in-production
+      - DATABASE_URI=sqlite:///app.db
+      - UPLOAD_FOLDER=/app/uploads
+      - GCP_BUCKET_NAME=secure-collab-platform-bucket
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: always

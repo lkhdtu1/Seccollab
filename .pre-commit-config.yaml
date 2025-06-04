@@ -1,0 +1,165 @@
+# 📦 Repository Setup Instructions
+
+This guide will help you create a clean new repository from this project with proper setup and organization.
+
+## 🎯 Creating a New Repository
+
+### Step 1: Prepare the Repository
+
+1. **Create a new repository on GitHub/GitLab**
+   - Go to GitHub and create a new repository
+   - **Don't** initialize with README, .gitignore, or license (we'll add our own)
+   - Copy the repository URL
+
+2. **Clean up current project** (Optional)
+   ```powershell
+   # Remove existing git history if you want a fresh start
+   Remove-Item -Recurse -Force .git
+   ```
+
+### Step 2: Initialize New Repository
+
+```powershell
+# Initialize new git repository
+git init
+
+# Add all files
+git add .
+
+# Initial commit
+git commit -m "Initial commit: SecureCollab Platform setup"
+
+# Add remote origin (replace with your repository URL)
+git remote add origin https://github.com/yourusername/secure-collab-platform.git
+
+# Push to main branch
+git branch -M main
+git push -u origin main
+```
+
+### Step 3: Set Up Branch Protection (Recommended)
+
+On GitHub/GitLab, configure:
+- Require pull request reviews
+- Require status checks to pass
+- Restrict pushes to main branch
+
+## 🧹 Repository Cleanup
+
+Before creating the new repository, you may want to clean up:
+
+### Files to Keep
+- ✅ Source code (`backend/`, `frontend/`)
+- ✅ Configuration files (`.gitignore`, `docker-compose.yml`)
+- ✅ Documentation (`README.md`, `GETTING_STARTED.md`, etc.)
+- ✅ Setup scripts (`setup.ps1`, `setup.sh`)
+- ✅ Environment examples (`.env.example`)
+
+### Files to Remove/Clean
+```powershell
+# Remove temporary/test files
+Remove-Item -Force comprehensive_production_tests*.py
+Remove-Item -Force deployment_*.py
+Remove-Item -Force production_*.py
+Remove-Item -Force test_*.py
+Remove-Item -Force final_*.py
+Remove-Item -Force verify_*.py
+Remove-Item -Force run_tests.py
+Remove-Item -Force fix_theme.ps1
+
+# Remove deployment reports (keep as reference if needed)
+Remove-Item -Force *DEPLOYMENT*.md
+Remove-Item -Force *PRODUCTION*.md
+Remove-Item -Force IMPLEMENTATION_SUMMARY.md
+
+# Clean up database files (will be recreated)
+Remove-Item -Force backend\instance\*.db
+Remove-Item -Force backend\instance\*.sqbpro
+
+# Clean up Python cache
+Get-ChildItem -Recurse -Force __pycache__ | Remove-Item -Recurse -Force
+Get-ChildItem -Recurse -Force *.pyc | Remove-Item -Force
+
+# Clean up Node modules (will be reinstalled)
+if (Test-Path "frontend\node_modules") {
+    Remove-Item -Recurse -Force frontend\node_modules
+}
+
+# Clean up avatar uploads (user data)
+if (Test-Path "backend\app\AVATARS") {
+    Get-ChildItem backend\app\AVATARS\avatar_* | Remove-Item -Force
+}
+```
+
+## 📋 Repository Structure
+
+After cleanup, your repository should look like:
+
+```
+secure-collab-platform/
+├── .gitignore                 # Git ignore rules
+├── README.md                  # Main documentation
+├── GETTING_STARTED.md         # Quick start guide
+├── DEVELOPMENT.md             # Development guide
+├── docker-compose.yml         # Docker configuration
+├── setup.ps1                  # Windows setup script
+├── setup.sh                   # Linux/macOS setup script
+├── start.ps1                  # Windows start script
+├── start.sh                   # Linux/macOS start script
+├── backend/                   # Flask backend
+│   ├── .env.example          # Environment template
+│   ├── requirements.txt      # Python dependencies
+│   ├── create_db.py          # Database initialization
+│   ├── run.py                # Application entry point
+│   ├── Dockerfile            # Docker configuration
+│   └── app/                  # Application code
+├── frontend/                  # React frontend
+│   ├── .env.example          # Environment template
+│   ├── package.json          # Node.js dependencies
+│   ├── Dockerfile            # Docker configuration
+│   └── src/                  # Source code
+├── docs/                      # Additional documentation
+└── tests/                     # Integration tests
+```
+
+## 🔧 Pre-commit Setup (Optional)
+
+Add pre-commit hooks for code quality:
+
+```powershell
+# Install pre-commit
+pip install pre-commit
+
+# Create .pre-commit-config.yaml
+```
+
+<function_calls>
+<invoke name="create_file">
+<parameter name="content">repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+
+  - repo: https://github.com/psf/black
+    rev: 23.3.0
+    hooks:
+      - id: black
+        files: backend/.*\.py$
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.0.0
+    hooks:
+      - id: flake8
+        files: backend/.*\.py$
+
+  - repo: local
+    hooks:
+      - id: frontend-lint
+        name: Frontend ESLint
+        entry: bash -c 'cd frontend && npm run lint'
+        language: system
+        files: frontend/.*\.(ts|tsx|js|jsx)$
