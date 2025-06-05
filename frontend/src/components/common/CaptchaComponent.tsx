@@ -35,9 +35,8 @@ const Captcha = forwardRef<CaptchaHandle, CaptchaProps>(({
   onExpired,
   onError,
   size = 'invisible',
-  theme = 'light',
-  className = '',
-  action = 'register',
+  theme = 'light',  className = '',
+  action = 'submit',
   version = 'v3',
   autoExecute = true
 }, ref) => {
@@ -62,9 +61,8 @@ const Captcha = forwardRef<CaptchaHandle, CaptchaProps>(({
     if (onError) {
       onError();
     }
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Development mode: Auto-providing dev token');
+      if (process.env.NODE_ENV === 'development') {
+      console.log('Development mode: Auto-providing dev token with action:', action);
       onVerify('dev-token');
     }
   }, [onError, onVerify]);
@@ -73,11 +71,12 @@ const Captcha = forwardRef<CaptchaHandle, CaptchaProps>(({
     console.log('reCAPTCHA token received:', token ? 'Valid token' : 'No token');
     onVerify(token);
   }, [onVerify]);
-
   const executeReCaptcha = useCallback(async () => {
     if (version === 'v3') {
       try {
+        console.log('Executing reCAPTCHA v3 with action:', action);
         const token = await window.grecaptcha.execute(siteKey, { action });
+        console.log('reCAPTCHA token generated for action:', action);
         if (onVerify) {
           onVerify(token);
         }
@@ -124,12 +123,15 @@ const Captcha = forwardRef<CaptchaHandle, CaptchaProps>(({
         : "CAPTCHA not configured. Set REACT_APP_RECAPTCHA_SITE_KEY in your .env file.";
       
       return (
-        <div className={`p-3 bg-yellow-100 border border-yellow-400 rounded-md text-yellow-800 text-sm ${className}`}>
-          <p>⚠️ {message}</p>
+        <div className={`p-3 bg-yellow-100 border border-yellow-400 rounded-md text-yellow-800 text-sm ${className}`}>          <p>⚠️ {message}</p>
           <p className="text-xs mt-1">Current value: {siteKey || 'undefined'}</p>
+          <p className="text-xs mt-1">Action: {action}</p>
           <button
             type="button"
-            onClick={() => onVerify('dev-token')}
+            onClick={() => {
+              console.log('Using dev-token with action:', action);
+              onVerify('dev-token');
+            }}
             className="mt-2 px-3 py-1 bg-yellow-600 text-white rounded text-xs hover:bg-yellow-700"
           >
             Skip CAPTCHA (Dev Mode)

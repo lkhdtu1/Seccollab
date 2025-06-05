@@ -86,7 +86,7 @@ def verify_captcha_for_action(token, expected_action, ip_address=None):
     Returns:
         dict: Verification result
     """
-    result = verify_recaptcha(token, ip_address)
+    result = verify_recaptcha(token, ip_address, expected_action)
     
     if not result['success']:
         return result
