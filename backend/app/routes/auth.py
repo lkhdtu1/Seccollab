@@ -425,27 +425,40 @@ def mfa_enable():
 @jwt_required()
 def mfa_disable():
     """Disable MFA for user."""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
-    
-    data = request.get_json()
-    
-    # For security, require password verification to disable MFA
-    if not user.check_password(data.get('password')):
-        return jsonify({'error': 'Invalid password'}), 401
-    
-    # Disable MFA
-    user.mfa_enabled = False
-    user.mfa_secret = None
-    
-    # Clear trusted devices
-    user.trusted_devices.delete()
-    db.session.commit()
-    
-    return jsonify({'message': 'MFA disabled successfully'})
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        data = request.get_json()
+        
+        if not data or not data.get('password'):
+            return jsonify({'error': 'Password is required'}), 400
+        
+        # For security, require password verification to disable MFA using the security utility
+        if not check_password(data.get('password'), user.password):
+            log_action('FAILED_MFA_DISABLE', user_id, f"Failed MFA disable attempt: incorrect password")
+            return jsonify({'error': 'Invalid password'}), 401
+        
+        # Disable MFA
+        user.mfa_enabled = False
+        user.mfa_secret = None
+        
+        # Clear trusted devices
+        user.trusted_devices.delete()
+        db.session.commit()
+        
+        # Log the action
+        log_action('MFA_DISABLED', user_id, f"MFA disabled successfully for user: {user.email}")
+        
+        return jsonify({'message': 'MFA disabled successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error disabling MFA: {str(e)}")
+        return jsonify({'error': 'Failed to disable MFA'}), 500
 
 @auth_bp.route('/mfa/verify', methods=['POST'])
 def mfa_verify():
