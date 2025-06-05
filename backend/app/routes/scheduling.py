@@ -86,11 +86,9 @@ Please log in to respond to this invitation.
                                     email_sent = True
                                     notification.status = 'sent'
                                 except Exception as flask_mail_error:
-                                    print(f"Flask-Mail failed: {str(flask_mail_error)}, trying enhanced Email1...")
-                            
-                            # If Flask-Mail failed or is not available, use enhanced Email1
+                                    print(f"Flask-Mail failed: {str(flask_mail_error)}, trying enhanced Email1...")                            # If Flask-Mail failed or is not available, use eventlet-bypass email utility
                             if not email_sent:
-                                from app.utils.Email1 import send_email_with_local_fallback
+                                from app.utils.EmailBypass import send_email_with_local_fallback
                                 success = send_email_with_local_fallback(
                                     to=user.email,
                                     subject=f'New Meeting Invitation: {schedule.title}',
