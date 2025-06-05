@@ -144,8 +144,8 @@ Write-Host "🎉 Setup Complete!" -ForegroundColor Green
 Write-Host ""
 Write-Host "📝 Next Steps:" -ForegroundColor Cyan
 Write-Host "1. Update the .env files with your configuration values" -ForegroundColor White
-Write-Host "2. Start the backend: cd backend && .\venv\Scripts\Activate.ps1 && python run.py" -ForegroundColor White
-Write-Host "3. Start the frontend: cd frontend && npm start" -ForegroundColor White
+Write-Host "2. Start the backend: cd backend ; .\venv\Scripts\Activate.ps1 ; python run.py" -ForegroundColor White
+Write-Host "3. Start the frontend: cd frontend ; npm start" -ForegroundColor White
 Write-Host ""
 Write-Host "🌐 Access the application at: http://localhost:3000" -ForegroundColor Cyan
 Write-Host "🔧 Backend API will be at: http://localhost:5000" -ForegroundColor Cyan

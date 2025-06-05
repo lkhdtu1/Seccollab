@@ -69,16 +69,14 @@ def main():
         # Enregistrer le blueprint Audit
         from app.routes.audit import audit_bp
         app.register_blueprint(audit_bp, url_prefix='/api/audit')
-        
-        # Enregistrer le blueprint Collaboration
+          # Enregistrer le blueprint Collaboration
         from app.routes.collaboration import collaboration_bp
         app.register_blueprint(collaboration_bp, url_prefix='/api/collaboration')
 
         from app.routes.stats import stats_bp
         app.register_blueprint(stats_bp, url_prefix='/api/stats')
         
-        from app.routes.scheduling import scheduling_bp
-        app.register_blueprint(scheduling_bp, url_prefix='/api')
+        # Scheduling blueprint is now registered in create_app()
          
          
          # Register messages blueprint

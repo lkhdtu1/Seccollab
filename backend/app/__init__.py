@@ -1,5 +1,5 @@
 from datetime import timedelta
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from app.config.config import Config
@@ -24,28 +24,26 @@ def create_app(config_class=Config):
     eventlet.monkey_patch(socket=True, select=True)
     
     app = Flask(__name__)
-    app.config.from_object(config_class)
-
-    # Add security headers via Talisman
+    app.config.from_object(config_class)    # Add security headers via Talisman (configured for development)
     csp = {
-        'default-src': ["'self'"],
-        'img-src': ["'self'", 'data:', 'https:', 'http:'],  # Allow loading images from HTTP/HTTPS
-        'script-src': ["'self'", "'unsafe-inline'"],
-        'style-src': ["'self'", "'unsafe-inline'"],
-        'frame-ancestors': ["'none'"]
+        'default-src': ["'self'", "http://localhost:3000", "http://127.0.0.1:3000"],
+        'img-src': ["'self'", 'data:', 'https:', 'http:', "http://localhost:3000", "http://127.0.0.1:3000"],
+        'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", "http://localhost:3000", "http://127.0.0.1:3000"],
+        'style-src': ["'self'", "'unsafe-inline'", "http://localhost:3000", "http://127.0.0.1:3000"],
+        'connect-src': ["'self'", "http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5000", "http://127.0.0.1:5000"],
+        'frame-ancestors': ["'self'", "http://localhost:3000", "http://127.0.0.1:3000"]
     }
     
     Talisman(app,
         force_https=False,  # Disable HTTPS requirement for local development
-        session_cookie_secure=True,
+        session_cookie_secure=False,  # Allow cookies over HTTP for development
         session_cookie_http_only=True,
-        strict_transport_security=True,
-        content_security_policy=csp
-    )
-
-    # Additional security configurations
+        strict_transport_security=False,  # Disable HSTS for development
+        content_security_policy=csp,
+        referrer_policy='strict-origin-when-cross-origin'
+    )    # Additional security configurations (development-friendly)
     app.config.update({
-        'SESSION_COOKIE_SECURE': True,
+        'SESSION_COOKIE_SECURE': False,  # Allow cookies over HTTP for development
         'SESSION_COOKIE_HTTPONLY': True,
         'SESSION_COOKIE_SAMESITE': 'Lax',
         'PERMANENT_SESSION_LIFETIME': timedelta(minutes=30)
@@ -75,16 +73,44 @@ def create_app(config_class=Config):
     app.config.update({
         'SECRET_KEY': os.getenv('SECRET_KEY', secrets.token_hex(32)),
         'GOOGLE_CLIENT_ID': os.getenv('GOOGLE_CLIENT_ID'),
-        'GOOGLE_CLIENT_SECRET': os.getenv('GOOGLE_CLIENT_SECRET'),
-        'FRONTEND_URL': os.getenv('FRONTEND_URL', 'http://localhost:3000'),
+        'GOOGLE_CLIENT_SECRET': os.getenv('GOOGLE_CLIENT_SECRET'),        'FRONTEND_URL': os.getenv('FRONTEND_URL', 'http://localhost:3000'),
         'BASE_URL': os.getenv('BASE_URL', 'http://localhost:5000'),
     })
     
     app.config['DEBUG'] = True
-    app.config['SQLALCHEMY_ECHO'] = True
-    # Initialiser les extensions
-    CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000"],
-                 "supports_credentials": True},r"/socket.io/*": {"origins": ["http://localhost:3000"]}})
+    app.config['SQLALCHEMY_ECHO'] = True    # Initialiser les extensions
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": ["http://localhost:3000", "http://127.0.0.1:3000"],
+            "supports_credentials": True,
+            "allow_headers": [
+                "Content-Type", 
+                "Authorization", 
+                "X-Requested-With",
+                "X-Content-Type-Options",
+                "X-Frame-Options",
+                "X-XSS-Protection",
+                "Cache-Control",
+                "Pragma"
+            ],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"]
+        },
+        r"/socket.io/*": {
+            "origins": ["http://localhost:3000", "http://127.0.0.1:3000"]
+        }    })
+    
+    # Add custom CORS handler for preflight requests
+    @app.before_request
+    def handle_preflight():
+        if request.method == "OPTIONS":
+            response = app.make_default_options_response()
+            headers = response.headers
+            headers['Access-Control-Allow-Origin'] = request.headers.get('Origin', '*')
+            headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH'
+            headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Cache-Control, Pragma'
+            headers['Access-Control-Allow-Credentials'] = 'true'
+            headers['Access-Control-Max-Age'] = '86400'
+            return response
     
    # Configure custom DNS resolver
   
@@ -117,8 +143,7 @@ def create_app(config_class=Config):
             'verify': True
         }
     )
-    
-    # Enregistrer les blueprints
+      # Enregistrer les blueprints
     from app.routes.auth import auth_bp
     #rom app.routes.files import files_bp
     from app.routes.users import users_bp
@@ -134,5 +159,8 @@ def create_app(config_class=Config):
     app.register_blueprint(active_users_bp, url_prefix='/api/active_users')
    #app.register_blueprint(messages_bp, url_prefix='/api/messages')
     
+    # Register scheduling blueprint
+    from app.routes.scheduling import scheduling_bp
+    app.register_blueprint(scheduling_bp, url_prefix='/api')
     
     return app

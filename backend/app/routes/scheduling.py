@@ -3,7 +3,7 @@ from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.user import db, User, Schedule, ScheduleParticipant, ScheduleNotification
 from datetime import datetime
-from flask_mail import Message
+from flask_mail import Message, Mail
 import uuid
 
 scheduling_bp = Blueprint('scheduling', __name__)
@@ -32,9 +32,12 @@ def create_schedule():
         )
         db.session.add(schedule)
         db.session.flush()  # Get schedule.id before using it
-        
-        # Add participants and notifications
+          # Add participants and notifications (excluding the creator)
         for participant_id in data['participants']:
+            # Skip if participant is the creator (creator should not be a participant)
+            if participant_id == current_user_id:
+                continue
+                
             # Create participant
             participant = ScheduleParticipant(
                 id=str(uuid.uuid4()),
@@ -53,19 +56,23 @@ def create_schedule():
                     type=notify_type,
                     status='pending'
                 )
-                db.session.add(notification)
-                
-                # Handle email notifications
+                db.session.add(notification)                # Handle email notifications
                 if notify_type == 'email':
                     user = User.query.get(participant_id)
                     if user and user.email:
                         try:
-                            msg = Message(
-                                f'New Meeting Invitation: {schedule.title}',
-                                sender=current_app.config['MAIL_DEFAULT_SENDER'],
-                                recipients=[user.email]
-                            )
-                            msg.body = f'''
+                            # Get the mail instance from the app
+                            mail = current_app.extensions.get('mail')
+                            email_sent = False
+                            
+                            if mail is not None:
+                                try:
+                                    msg = Message(
+                                        f'New Meeting Invitation: {schedule.title}',
+                                        sender=current_app.config['MAIL_DEFAULT_SENDER'],
+                                        recipients=[user.email]
+                                    )
+                                    msg.body = f'''
 You have been invited to a meeting:
 
 Title: {schedule.title}
@@ -75,8 +82,31 @@ End Time: {schedule.end_time}
 
 Please log in to respond to this invitation.
 '''
-                            current_app.extensions['mail'].send(msg)
-                            notification.status = 'sent'
+                                    mail.send(msg)
+                                    email_sent = True
+                                    notification.status = 'sent'
+                                except Exception as flask_mail_error:
+                                    print(f"Flask-Mail failed: {str(flask_mail_error)}, trying enhanced Email1...")
+                            
+                            # If Flask-Mail failed or is not available, use enhanced Email1
+                            if not email_sent:
+                                from app.utils.Email1 import send_email_with_local_fallback
+                                success = send_email_with_local_fallback(
+                                    to=user.email,
+                                    subject=f'New Meeting Invitation: {schedule.title}',
+                                    body=f'''
+You have been invited to a meeting:
+
+Title: {schedule.title}
+Description: {schedule.description}
+Start Time: {schedule.start_time}
+End Time: {schedule.end_time}
+
+Please log in to respond to this invitation.
+'''
+                                )
+                                notification.status = 'sent' if success else 'failed'
+                                
                         except Exception as mail_error:
                             print(f"Failed to send email: {str(mail_error)}")
                             notification.status = 'failed'
@@ -230,8 +260,7 @@ def cancel_schedule(schedule_id):
         # Update all participants' status to 'cancelled'
         for participant in schedule.participants:
             participant.status = 'cancelled'
-            
-            # Send cancellation notifications
+              # Send cancellation notifications
             notification = ScheduleNotification(
                 id=str(uuid.uuid4()),
                 schedule_id=schedule.id,
@@ -241,16 +270,31 @@ def cancel_schedule(schedule_id):
             )
             db.session.add(notification)
             
-            # Send email notification
+            # Create email notification entry
+            email_notification = ScheduleNotification(
+                id=str(uuid.uuid4()),
+                schedule_id=schedule.id,
+                user_id=participant.user_id,
+                type='email',
+                status='pending'
+            )
+            db.session.add(email_notification)
+              # Send email notification with proper status tracking
             user = User.query.get(participant.user_id)
             if user and user.email:
                 try:
-                    msg = Message(
-                        f'Meeting Cancelled: {schedule.title}',
-                        sender=current_app.config['MAIL_DEFAULT_SENDER'],
-                        recipients=[user.email]
-                    )
-                    msg.body = f'''
+                    # Get the mail instance from the app
+                    mail = current_app.extensions.get('mail')
+                    email_sent = False
+                    
+                    if mail is not None:
+                        try:
+                            msg = Message(
+                                f'Meeting Cancelled: {schedule.title}',
+                                sender=current_app.config['MAIL_DEFAULT_SENDER'],
+                                recipients=[user.email]
+                            )
+                            msg.body = f'''
 The following meeting has been cancelled:
 
 Title: {schedule.title}
@@ -260,9 +304,36 @@ End Time: {schedule.end_time}
 
 This meeting has been cancelled by the organizer.
 '''
-                    current_app.extensions['mail'].send(msg)
+                            mail.send(msg)
+                            email_sent = True
+                            email_notification.status = 'sent'
+                        except Exception as flask_mail_error:
+                            print(f"Flask-Mail failed for cancellation: {str(flask_mail_error)}, trying enhanced Email1...")
+                    
+                    # If Flask-Mail failed or is not available, use enhanced Email1
+                    if not email_sent:
+                        from app.utils.Email1 import send_email_with_local_fallback
+                        success = send_email_with_local_fallback(
+                            to=user.email,
+                            subject=f'Meeting Cancelled: {schedule.title}',
+                            body=f'''
+The following meeting has been cancelled:
+
+Title: {schedule.title}
+Description: {schedule.description}
+Start Time: {schedule.start_time}
+End Time: {schedule.end_time}
+
+This meeting has been cancelled by the organizer.
+'''
+                        )
+                        email_notification.status = 'sent' if success else 'failed'
+                        if not success:
+                            print(f"Enhanced email system also failed for {user.email}")
+                            
                 except Exception as mail_error:
                     print(f"Failed to send cancellation email: {str(mail_error)}")
+                    email_notification.status = 'failed'
 
         db.session.commit()
         return jsonify({'message': 'Schedule cancelled successfully'})
