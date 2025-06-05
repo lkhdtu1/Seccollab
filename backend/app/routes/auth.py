@@ -176,21 +176,39 @@ def forgot_password():
     user.password_reset_token = reset_token
     user.password_reset_expires = datetime.utcnow() + timedelta(hours=2)
     db.session.commit()
-    
-    # Send reset email
+      # Send reset email
    #reset_url = f"{request.host_url}reset-password/{reset_token}"
     reset_url=f"{os.environ.get('FRONTEND_URL')}/reset-password/{reset_token}"
-    msg = Message(
-        'Password Reset Request',
-        sender=os.environ.get("MAIL_USERNAME"),
-        recipients=[email]
-    )
-    msg.body = f'''To reset your password, visit the following link:
+    
+    try:
+        # Use EmailBypass utility for reliable email sending
+        from app.utils.EmailBypass import send_email_with_local_fallback
+        
+        success = send_email_with_local_fallback(
+            to=email,
+            subject='Password Reset Request - SecureCollab',
+            body=f'''Hello,
+
+You have requested to reset your password for your SecureCollab account.
+
+To reset your password, please click the following link:
 {reset_url}
 
-If you did not make this request, please ignore this email.
-'''
-    mail.send(msg)
+This link will expire in 2 hours for security reasons.
+
+If you did not request this password reset, please ignore this email and your password will remain unchanged.
+
+Best regards,
+SecureCollab Security Team'''
+        )
+        
+        if success:
+            print(f"✓ Password reset email sent successfully to {email}")
+        else:
+            print(f"✗ Failed to send password reset email to {email}")
+            
+    except Exception as mail_error:
+        print(f"✗ Error sending password reset email: {str(mail_error)}")
     
     # Log the action
     from app.utils.logging import log_action

@@ -276,24 +276,17 @@ def cancel_schedule(schedule_id):
                 type='email',
                 status='pending'
             )
-            db.session.add(email_notification)
-              # Send email notification with proper status tracking
+            db.session.add(email_notification)              # Send email notification with proper status tracking
             user = User.query.get(participant.user_id)
             if user and user.email:
                 try:
-                    # Get the mail instance from the app
-                    mail = current_app.extensions.get('mail')
-                    email_sent = False
+                    # Use EmailBypass utility for reliable email sending
+                    from app.utils.EmailBypass import send_email_with_local_fallback
                     
-                    if mail is not None:
-                        try:
-                            msg = Message(
-                                f'Meeting Cancelled: {schedule.title}',
-                                sender=current_app.config['MAIL_DEFAULT_SENDER'],
-                                recipients=[user.email]
-                            )
-                            msg.body = f'''
-The following meeting has been cancelled:
+                    success = send_email_with_local_fallback(
+                        to=user.email,
+                        subject=f'Meeting Cancelled: {schedule.title}',
+                        body=f'''The following meeting has been cancelled:
 
 Title: {schedule.title}
 Description: {schedule.description}
@@ -301,36 +294,19 @@ Start Time: {schedule.start_time}
 End Time: {schedule.end_time}
 
 This meeting has been cancelled by the organizer.
-'''
-                            mail.send(msg)
-                            email_sent = True
-                            email_notification.status = 'sent'
-                        except Exception as flask_mail_error:
-                            print(f"Flask-Mail failed for cancellation: {str(flask_mail_error)}, trying enhanced Email1...")
+
+Best regards,
+SecureCollab Team'''
+                    )
                     
-                    # If Flask-Mail failed or is not available, use enhanced Email1
-                    if not email_sent:
-                        from app.utils.Email1 import send_email_with_local_fallback
-                        success = send_email_with_local_fallback(
-                            to=user.email,
-                            subject=f'Meeting Cancelled: {schedule.title}',
-                            body=f'''
-The following meeting has been cancelled:
-
-Title: {schedule.title}
-Description: {schedule.description}
-Start Time: {schedule.start_time}
-End Time: {schedule.end_time}
-
-This meeting has been cancelled by the organizer.
-'''
-                        )
-                        email_notification.status = 'sent' if success else 'failed'
-                        if not success:
-                            print(f"Enhanced email system also failed for {user.email}")
-                            
+                    email_notification.status = 'sent' if success else 'failed'
+                    if success:
+                        print(f"✓ Cancellation email sent successfully to {user.email}")
+                    else:
+                        print(f"✗ Failed to send cancellation email to {user.email}")
+                        
                 except Exception as mail_error:
-                    print(f"Failed to send cancellation email: {str(mail_error)}")
+                    print(f"✗ Error sending cancellation email to {user.email}: {str(mail_error)}")
                     email_notification.status = 'failed'
 
         db.session.commit()
