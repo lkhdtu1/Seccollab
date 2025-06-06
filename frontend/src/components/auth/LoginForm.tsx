@@ -201,15 +201,12 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
               <div className="w-full border-t border-gray-300"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white/90 text-gray-500">Or continue with</span>
+              <span className="px-2 bg-white/90 text-gray-500"></span>
             </div>
           </div>
 
-          <div className="mt-6">
-            <GoogleLoginButton onSuccess={onSuccess} />
-          </div>
         </div>
-        
+
         <p className="mt-2 text-center text-sm text-gray-600">
           Don't have an account?{' '}
           <button
