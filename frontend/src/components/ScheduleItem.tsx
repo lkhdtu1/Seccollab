@@ -124,10 +124,9 @@ const ScheduleItem: React.FC<ScheduleItemProps> = ({
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{description}</p>
           </div>
           <div className="flex items-center space-x-2">
-            
-            {/* Only show accept/decline buttons for non-creators who are participants with pending status */}
+              {/* Only show accept/decline buttons for non-creators who are participants with pending status */}
             {!isCreator && currentUserParticipant?.status === 'pending' && onRespond && (
-              <div className="flex space-x-2">
+              <div className="flex flex-col space-y-2">
                 <button
                   onClick={() => onRespond(id, 'accepted')}
                   className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-medium text-green-700 dark:text-green-300 bg-green-50/80 dark:bg-green-900/30 hover:bg-green-100/80 dark:hover:bg-green-800/40 transition-all duration-200 backdrop-blur-sm border border-green-200/50 dark:border-green-700/50"
