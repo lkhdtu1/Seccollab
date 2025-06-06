@@ -51,7 +51,7 @@ def test_cors_configuration():
             json={
                 "name": "CORS Test User",
                 "email": "cors.test@example.com",
-                "password": "TestPassword123!",
+                "password": "SecureTestPassword123!",
                 "captcha_token": "test_token_bypass"
             }
         )

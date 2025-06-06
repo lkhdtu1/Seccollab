@@ -19,7 +19,7 @@ def test_user_registration_and_login():
     test_user = {
         "name": "Test User Schedule",
         "email": "testuser@example.com",
-        "password": "TestPassword123!",
+        "password": "SecureTestPassword123!",
         "captcha_token": "test-token"  # Use test token for development
     }
     

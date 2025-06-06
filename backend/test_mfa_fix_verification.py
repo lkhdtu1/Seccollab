@@ -67,7 +67,7 @@ def test_imports():
         print("✅ Security utilities import successfully")
         
         # Test the password functions
-        test_password = "TestPassword123!"
+        test_password = "SecureTestPassword123!"
         hashed = hash_password(test_password)
         
         if hashed and check_password(test_password, hashed):

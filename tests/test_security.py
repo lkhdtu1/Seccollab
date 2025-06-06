@@ -114,7 +114,7 @@ class TestSecurityFeatures(unittest.TestCase):
         # Tester la limitation de débit sur l'API de connexion
         login_data = {
             "email": "nonexistent@example.com",
-            "password": "WrongPassword123!"
+            "password": "WrongSecurePassword123!"
         }
         
         # Faire plusieurs requêtes en succession rapide

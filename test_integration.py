@@ -52,7 +52,7 @@ def test_backend_api():
     test_user = {
         "name": "Test User",
         "email": f"test.user.{int(time.time())}@example.com",
-        "password": "TestPassword123!",
+        "password": "SecureTestPassword123!",
         "captcha_token": "test_token_bypass"  # For testing purposes
     }
     

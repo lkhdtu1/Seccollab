@@ -78,11 +78,20 @@ def change_password():
     
     if not user:
         return jsonify({'message': 'Utilisateur non trouvé'}), 404
-    
-    # Vérifier si le mot de passe actuel est correct
+      # Vérifier si le mot de passe actuel est correct
     from app.utils.security import check_password
     if not check_password(data['current_password'], user.password):
         return jsonify({'message': 'Mot de passe actuel incorrect'}), 401
+    
+    # Enhanced password validation using new security policy (12+ characters)
+    from app.routes.security import validate_password_strength
+    password_validation = validate_password_strength(data['new_password'])
+    if not password_validation['valid']:
+        return jsonify({
+            'message': 'Le nouveau mot de passe ne respecte pas la politique de sécurité renforcée',
+            'details': password_validation['details'],
+            'suggestions': password_validation['suggestions']
+        }), 400
     
     # Hacher le nouveau mot de passe
     from app.utils.security import hash_password

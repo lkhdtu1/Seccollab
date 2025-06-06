@@ -34,10 +34,10 @@ from app.utils.captcha import verify_captcha_for_action
 from app.config.config import Config
 from app.utils.security import hash_password, check_password
 
-# Initialize rate limiter
+# Initialize rate limiter with more user-friendly limits
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"]
+    default_limits=["2000 per day", "200 per hour"]  # More generous limits for normal users
 )
 
 # Email regex pattern
@@ -80,8 +80,7 @@ def register():
     
     if not all(k in data for k in ('email', 'password', 'name')):
         return jsonify({'error': 'Missing required fields'}), 400
-    
-    # Verify CAPTCHA
+      # Verify CAPTCHA
     captcha_token = data.get('captcha_token')
     if not captcha_token:
         return jsonify({'error': 'CAPTCHA verification required'}), 400
@@ -92,24 +91,27 @@ def register():
         'register', 
         request.environ.get('REMOTE_ADDR')
     )
-    
     if not captcha_result['success']:
         return jsonify({'error': f'CAPTCHA verification failed: {captcha_result.get("error", "Unknown error")}'}), 400
     
     # Normalize email to lowercase
     email = data['email'].lower().strip()
-    
     if not validate_email(email):
         return jsonify({'error': 'Invalid email format'}), 400
         
-    if len(data['password']) < 8:
-        return jsonify({'error': 'Password must be at least 8 characters long'}), 400
-
-    # Check if user already exists (case-insensitive)
+    # Enhanced password validation using new security policy (12+ characters)
+    from app.routes.security import validate_password_strength
+    password_validation = validate_password_strength(data['password'])
+    if not password_validation['valid']:
+        return jsonify({
+            'error': 'Password does not meet security requirements',
+            'details': password_validation['details'],
+            'suggestions': password_validation['suggestions']
+        }), 400    # Check if user already exists (case-insensitive)
     if User.email_exists(email):
         return jsonify({'error': 'Email already registered'}), 409
     
-     # Hacher le mot de passe
+    # Hacher le mot de passe
     hashed_password = hash_password(data['password'])
     
     # Create new user with normalized email
@@ -218,21 +220,29 @@ SecureCollab Security Team'''
 
 @auth_bp.route('/reset-password/<token>', methods=['POST'])
 def reset_password(token):
-    """Reset password using token."""
+    """Reset password using token with enhanced validation."""
     data = request.get_json()
     new_password = data.get('password')
     
     if not new_password:
         return jsonify({'error': 'New password is required'}), 400
     
+    # Enhanced password validation using new security policy (12+ characters)
+    from app.routes.security import validate_password_strength
+    password_validation = validate_password_strength(new_password)
+    if not password_validation['valid']:
+        return jsonify({
+            'error': 'Password does not meet security requirements',
+            'details': password_validation['details'],
+            'suggestions': password_validation['suggestions']
+        }), 400
+    
     user = User.query.filter_by(password_reset_token=token).first()
     
     if not user or not user.password_reset_expires or user.password_reset_expires < datetime.utcnow():
         return jsonify({'error': 'Invalid or expired reset token'}), 400
     
-    user.password = (hash_password(new_password))
-    #user.password = 
-    
+    user.password = hash_password(new_password)
     user.password_reset_token = None
     user.password_reset_expires = None
     db.session.add(user)
@@ -245,7 +255,7 @@ def reset_password(token):
     return jsonify({'message': 'Password has been reset successfully'}), 200
 
 @auth_bp.route('/login', methods=['POST'])
-@limiter.limit("5 per minute")
+@limiter.limit("25 per minute")  # Even more generous for normal user login attempts
 def login():
     """Login with rate limiting and enhanced security."""
     data = request.get_json()
@@ -688,10 +698,15 @@ def change_password():
         if not check_password(data['current_password'], user.password):
             log_action('FAILED_PASSWORD_CHANGE', current_user_id, f"Failed password change attempt: incorrect current password")
             return jsonify({'error': 'Current password is incorrect'}), 401
-        
-        # Validate new password
-        if len(data['new_password']) < 8:
-            return jsonify({'error': 'New password must be at least 8 characters long'}), 400
+          # Validate new password with enhanced 12+ character policy
+        from app.routes.security import validate_password_strength
+        password_validation = validate_password_strength(data['new_password'])
+        if not password_validation['valid']:
+            return jsonify({
+                'error': 'New password does not meet security requirements',
+                'details': password_validation['details'],
+                'suggestions': password_validation['suggestions']
+            }), 400
         
         # Hash and update password
         user.password = hash_password(data['new_password'])

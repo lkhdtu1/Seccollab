@@ -33,7 +33,7 @@ class TestMFADisableFix(unittest.TestCase):
         # Create test user with MFA enabled
         self.test_user = User(
             email='mfatest@example.com',
-            password=hash_password('TestPassword123!'),
+            password=hash_password('SecureTestPassword123!'),
             name='MFA Test User',
             mfa_enabled=True,
             mfa_secret='JBSWY3DPEHPK3PXP'  # Test secret
@@ -52,7 +52,7 @@ class TestMFADisableFix(unittest.TestCase):
         login_response = self.client.post('/api/auth/login', 
             json={
                 'email': 'mfatest@example.com',
-                'password': 'TestPassword123!'
+                'password': 'SecureTestPassword123!'
             }
         )
         
@@ -84,7 +84,7 @@ class TestMFADisableFix(unittest.TestCase):
         
         # Test with correct password
         response = self.client.post('/api/auth/mfa/disable',
-            json={'password': 'TestPassword123!'},
+            json={'password': 'SecureTestPassword123!'},
             headers=headers
         )
         
@@ -123,7 +123,7 @@ class TestMFADisableFix(unittest.TestCase):
         
         # Test with incorrect password
         response = self.client.post('/api/auth/mfa/disable',
-            json={'password': 'WrongPassword123!'},
+            json={'password': 'WrongSecurePassword123!'},
             headers=headers
         )
         

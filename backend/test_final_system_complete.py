@@ -35,7 +35,7 @@ def test_complete_scheduling_with_email():
     register_data = {
         "name": "Test User",
         "email": "testuser@example.com", 
-        "password": "testpassword123",
+        "password": "SecureTestPassword123!",
         "captcha_token": "test-token"
     }
     
@@ -56,7 +56,7 @@ def test_complete_scheduling_with_email():
     print("\n3. Testing user login...")
     login_data = {
         "email": "testuser@example.com",
-        "password": "testpassword123"
+        "password": "SecureTestPassword123!"
     }
     
     try:
@@ -77,7 +77,7 @@ def test_complete_scheduling_with_email():
     register_data2 = {
         "name": "Email Test User",
         "email": "emailtest@example.com",
-        "password": "testpassword123", 
+        "password": "SecureTestPassword123!", 
         "captcha_token": "test-token"
     }
     
@@ -95,7 +95,7 @@ def test_complete_scheduling_with_email():
     # Get second user ID
     login_data2 = {
         "email": "emailtest@example.com",
-        "password": "testpassword123"
+        "password": "SecureTestPassword123!"
     }
     
     try:

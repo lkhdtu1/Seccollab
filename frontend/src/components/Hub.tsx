@@ -550,10 +550,8 @@ const Hub: React.FC<HubProps> = ({ user, setUser, initialUsers = [], initialSche
             {[
               { name: 'Home', icon: Home, path: '/hub' },
               { name: 'Users', icon: Users, path: '/users' },
-              { name: 'Dashboard', icon: DashboardIcon, path: '/dashboard' },
               { name: 'Statistics', icon: BarChart, path: '/stats' },
               { name: 'Settings', icon: Settings, path: '/settings' },
-              { name: 'Schedules', icon: Calendar, path: '/schedules' },
               { name: 'Schedule Meeting', icon: PlusCircle, action: () => setShowScheduleDialog(true) },
             ].map(item => (              <button
                 key={item.name}

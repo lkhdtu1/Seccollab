@@ -20,7 +20,7 @@ def test_user_registration_and_login():
     test_user = {
         "username": "testuser_schedule",
         "email": "testuser@example.com",
-        "password": "TestPassword123!"
+        "password": "SecureTestPassword123!"
     }
     
     # Register user

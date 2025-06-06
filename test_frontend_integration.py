@@ -69,7 +69,7 @@ def test_complete_integration():
     test_user = {
         "name": "Integration Test User",
         "email": f"integration.test.{timestamp}@example.com",
-        "password": "TestPassword123!",
+        "password": "SecureTestPassword123!",
         "captcha_token": "test_token_bypass"
     }
     

@@ -18,13 +18,158 @@ import eventlet
 
 from app.DNS import create_session_with_retries, setup_dns_resolver
 
+# Import security middleware for advanced protection
+from app.utils.security_middleware import (
+    add_security_headers, 
+    check_honeypot_traps,
+    SecurityManager
+)
+
 
 def create_app(config_class=Config):
-     # Configure eventlet before anything else
+    # Configure eventlet before anything else
     eventlet.monkey_patch(socket=True, select=True)
     
     app = Flask(__name__)
-    app.config.from_object(config_class)    # Add security headers via Talisman (configured for development)
+    app.config.from_object(config_class)
+      # Apply advanced security middleware to all requests
+    @app.before_request
+    def security_checks():
+        """Apply comprehensive security checks to all incoming requests"""
+        client_ip = request.environ.get('REMOTE_ADDR', 'unknown')
+        
+        # 1. Check if IP is blocked
+        if SecurityManager.is_ip_blocked(client_ip):
+            from flask import jsonify
+            return jsonify({
+                'error': 'Access temporarily blocked due to suspicious activity',
+                'code': 'IP_BLOCKED'
+            }), 429
+          # 2. Apply selective rate limiting - only for sensitive endpoints
+        sensitive_endpoints = ['/api/auth/login', '/api/auth/register', '/api/auth/forgot-password', 
+                             '/api/auth/reset-password', '/api/auth/change-password']
+        
+        if request.endpoint and any(endpoint in request.path for endpoint in sensitive_endpoints):
+            if SecurityManager.check_rate_limit(client_ip, request_type='auth'):
+                from flask import jsonify
+                return jsonify({
+                    'error': 'Rate limit exceeded for authentication. Please wait a moment.',
+                    'code': 'AUTH_RATE_LIMITED'
+                }), 429
+        elif request.path.startswith('/api/'):
+            # Apply moderate rate limiting to API endpoints
+            if SecurityManager.check_rate_limit(client_ip, request_type='api'):
+                from flask import jsonify
+                return jsonify({
+                    'error': 'API rate limit exceeded. Please slow down.',
+                    'code': 'API_RATE_LIMITED'
+                }), 429
+        elif request.path.startswith('/static/'):
+            # Very permissive for static files
+            if SecurityManager.check_rate_limit(client_ip, request_type='static'):
+                from flask import jsonify
+                return jsonify({
+                    'error': 'Too many requests for static resources.',
+                    'code': 'STATIC_RATE_LIMITED'
+                }), 429
+        else:
+            # General rate limiting for other requests
+            if SecurityManager.check_rate_limit(client_ip, request_type='general'):
+                from flask import jsonify
+                return jsonify({
+                    'error': 'General rate limit exceeded.',
+                    'code': 'GENERAL_RATE_LIMITED'
+                }), 429
+        
+        # 3. Check for suspicious user agents
+        user_agent = request.headers.get('User-Agent', '')
+        if SecurityManager.is_suspicious_user_agent(user_agent):
+            SecurityManager.block_ip(client_ip, 30)  # Block for 30 minutes
+            from app.utils.logging import log_action
+            try:
+                log_action('SUSPICIOUS_USER_AGENT', 'system', 
+                          f"Suspicious user agent from {client_ip}: {user_agent}")
+            except:
+                pass  # Continue even if logging fails
+            from flask import jsonify
+            return jsonify({
+                'error': 'Access denied',
+                'code': 'SUSPICIOUS_ACTIVITY'
+            }), 403
+        
+        # 4. Check for SQL injection attempts in request data
+        request_data = None
+        if request.is_json:
+            try:
+                request_data = request.get_json()
+            except:
+                pass
+        elif request.form:
+            request_data = dict(request.form)
+        
+        if request_data and SecurityManager.detect_sql_injection(request_data):
+            SecurityManager.block_ip(client_ip, 60)  # Block for 1 hour
+            from app.utils.logging import log_action
+            try:
+                log_action('SQL_INJECTION_ATTEMPT', 'system', 
+                          f"SQL injection attempt from {client_ip}")
+            except:
+                pass  # Continue even if logging fails
+            from flask import jsonify
+            return jsonify({
+                'error': 'Invalid request detected',
+                'code': 'SECURITY_VIOLATION'
+            }), 400
+        
+        # 5. Apply honeypot checks
+        honeypot_result = check_honeypot_traps()
+        if honeypot_result:
+            return honeypot_result
+        # if SecurityManager.check_rate_limit(client_ip):
+        #     SecurityManager.block_ip(client_ip, 15)  # Block for 15 minutes
+        #     from flask import jsonify
+        #     return jsonify({
+        #         'error': 'Too many requests. Please try again later.',
+        #         'code': 'RATE_LIMITED'
+        #     }), 429
+        
+        # # 3. Check for suspicious user agent
+        # user_agent = request.headers.get('User-Agent', '')
+        # if SecurityManager.is_suspicious_user_agent(user_agent):
+        #     from app.utils.logging import log_action
+        #     log_action('SUSPICIOUS_USER_AGENT', 'system', 
+        #               f"Suspicious user agent from {client_ip}: {user_agent}")
+        
+        # # 4. Check for SQL injection attempts in request data
+        # request_data = None
+        # if request.is_json:
+        #     try:
+        #         request_data = request.get_json()
+        #     except:
+        #         pass
+        # elif request.form:
+        #     request_data = dict(request.form)
+        
+        # if request_data and SecurityManager.detect_sql_injection(request_data):
+        #     SecurityManager.block_ip(client_ip, 60)  # Block for 1 hour
+        #     from app.utils.logging import log_action
+        #     log_action('SQL_INJECTION_ATTEMPT', 'system', 
+        #               f"SQL injection attempt from {client_ip}")
+        #     from flask import jsonify
+        #     return jsonify({
+        #         'error': 'Invalid request detected',
+        #         'code': 'SECURITY_VIOLATION'
+        #     }), 400        # 5. Apply honeypot checks
+        honeypot_result = check_honeypot_traps()
+        if honeypot_result:
+            return honeypot_result
+    
+    @app.after_request
+    def apply_security_headers(response):
+        """Apply comprehensive security headers to all responses"""
+        return add_security_headers(response)
+
+    # Add security headers via Talisman (configured for development)
     csp = {
         'default-src': ["'self'", "http://localhost:3000", "http://127.0.0.1:3000"],
         'img-src': ["'self'", 'data:', 'https:', 'http:', "http://localhost:3000", "http://127.0.0.1:3000"],

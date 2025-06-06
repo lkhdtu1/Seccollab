@@ -29,9 +29,9 @@ class TestAuthentication(unittest.TestCase):
             test_user = User(
                 email='test@example.com',
                 name='Test User',
-                password=hash_password('Password123!')
+                password=hash_password('SecurePassword123!')
             )
-            test_user.save()
+            db.session.add(test_user); db.session.commit()
         
         self.client = self.app.test_client()
     
@@ -47,7 +47,7 @@ class TestAuthentication(unittest.TestCase):
         response = self.client.post('/api/auth/register', json={
             'email': 'new@example.com',
             'name': 'New User',
-            'password': 'Password123!'
+            'password': 'SecurePassword123!'
         })
         
         self.assertEqual(response.status_code, 201)
@@ -64,7 +64,7 @@ class TestAuthentication(unittest.TestCase):
         response = self.client.post('/api/auth/register', json={
             'email': 'test@example.com',
             'name': 'Another User',
-            'password': 'Password123!'
+            'password': 'SecurePassword123!'
         })
         
         self.assertEqual(response.status_code, 409)
@@ -74,7 +74,7 @@ class TestAuthentication(unittest.TestCase):
         # Tester la connexion réussie
         response = self.client.post('/api/auth/login', json={
             'email': 'test@example.com',
-            'password': 'Password123!'
+            'password': 'SecurePassword123!'
         })
         
         self.assertEqual(response.status_code, 200)
@@ -87,7 +87,7 @@ class TestAuthentication(unittest.TestCase):
         # Tester la connexion avec un mot de passe incorrect
         response = self.client.post('/api/auth/login', json={
             'email': 'test@example.com',
-            'password': 'WrongPassword123!'
+            'password': 'WrongSecurePassword123!'
         })
         
         self.assertEqual(response.status_code, 401)
@@ -97,7 +97,7 @@ class TestAuthentication(unittest.TestCase):
         # Tester la connexion avec un utilisateur inexistant
         response = self.client.post('/api/auth/login', json={
             'email': 'nonexistent@example.com',
-            'password': 'Password123!'
+            'password': 'SecurePassword123!'
         })
         
         self.assertEqual(response.status_code, 401)
@@ -123,17 +123,17 @@ class TestFileOperations(unittest.TestCase):
             test_user = User(
                 email='test@example.com',
                 name='Test User',
-                password=hash_password('Password123!')
+                password=hash_password('SecurePassword123!')
             )
-            test_user.save()
+            db.session.add(test_user); db.session.commit()
             
             # Créer un autre utilisateur pour les tests de partage
             other_user = User(
                 email='other@example.com',
                 name='Other User',
-                password=hash_password('Password123!')
+                password=hash_password('SecurePassword123!')
             )
-            other_user.save()
+            db.session.add(other_user); db.session.commit()
             
             # Créer un fichier de test
             test_file = File(
@@ -143,14 +143,14 @@ class TestFileOperations(unittest.TestCase):
                 mime_type='text/plain',
                 owner_id=test_user.id
             )
-            test_file.save()
+            db.session.add(test_file); db.session.commit()
         
         self.client = self.app.test_client()
         
         # Se connecter et obtenir un token
         response = self.client.post('/api/auth/login', json={
             'email': 'test@example.com',
-            'password': 'Password123!'
+            'password': 'SecurePassword123!'
         })
         self.token = response.get_json()['access_token']
     
@@ -201,7 +201,7 @@ class TestFileOperations(unittest.TestCase):
         # Se connecter avec l'autre utilisateur
         response = self.client.post('/api/auth/login', json={
             'email': 'other@example.com',
-            'password': 'Password123!'
+            'password': 'SecurePassword123!'
         })
         other_token = response.get_json()['access_token']
         
@@ -235,16 +235,16 @@ class TestSecurity(unittest.TestCase):
             test_user = User(
                 email='test@example.com',
                 name='Test User',
-                password=hash_password('Password123!')
+                password=hash_password('SecurePassword123!')
             )
-            test_user.save()
+            db.session.add(test_user); db.session.commit()
         
         self.client = self.app.test_client()
         
         # Se connecter et obtenir un token
         response = self.client.post('/api/auth/login', json={
             'email': 'test@example.com',
-            'password': 'Password123!'
+            'password': 'SecurePassword123!'
         })
         self.token = response.get_json()['access_token']
     
@@ -257,7 +257,7 @@ class TestSecurity(unittest.TestCase):
     
     def test_password_hashing(self):
         # Tester le hachage des mots de passe
-        password = 'Password123!'
+        password = 'SecurePassword123!'
         hashed = hash_password(password)
         
         # Vérifier que le mot de passe est correctement haché
@@ -298,7 +298,7 @@ class TestSecurity(unittest.TestCase):
         # Tester la validation des mots de passe
         # Mot de passe valide
         response = self.client.post('/api/security/validate-password', json={
-            'password': 'Password123!'
+            'password': 'SecurePassword123!'
         })
         
         self.assertEqual(response.status_code, 200)
@@ -306,7 +306,7 @@ class TestSecurity(unittest.TestCase):
         
         # Mot de passe invalide (pas de majuscule)
         response = self.client.post('/api/security/validate-password', json={
-            'password': 'password123!'
+            'password': 'SecurePassword123!'
         })
         
         self.assertEqual(response.status_code, 200)

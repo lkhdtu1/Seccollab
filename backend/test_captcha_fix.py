@@ -122,7 +122,7 @@ def test_register_endpoint():
             test_data = {
                 'email': 'newuser@example.com',
                 'name': 'Test User',
-                'password': 'TestPassword123!',
+                'password': 'SecureTestPassword123!',
                 'captcha_token': 'dev-token'
             }
             
