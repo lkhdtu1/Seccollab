@@ -1,0 +1,80 @@
+@startuml Real_time_Messaging_Activity
+
+start
+
+:User Opens Chat
+- Select Recipient
+- Load Chat History
+- Connect WebSocket;
+
+:Initialize Chat UI
+- Load Messages
+- Setup Event Listen
+- Show Online Status;
+
+fork
+  :Message Sending Activity;
+  
+  repeat
+    :Type Message
+    - Text Input
+    - File Attach
+    - Emoji Select;
+    
+    if (Message Valid?) then (Valid)
+      :Send Message
+      - WebSocket
+      - DB Store
+      - Encrypt;
+      
+      :Update UI
+      - Message Bubble
+      - Timestamp
+      - Delivery Status;
+    else (Empty)
+      :Wait;
+    endif
+    
+  repeat while (Continue Chatting?)
+  
+fork again
+  :Message Receiving Activity;
+  
+  repeat
+    :WebSocket Listen
+    - Event Handler
+    - Message Parse
+    - Validation;
+    
+    if (Message for User?) then (Yes)
+      :Process Message
+      - Decrypt
+      - Store
+      - Notify;
+      
+      :Update Chat UI
+      - New Message
+      - Sound Alert
+      - Badge Update;
+    else (No)
+      :Ignore;
+    endif
+    
+  repeat while (Connection Active?)
+  
+end fork
+
+if (User Closes Chat?) then (Yes)
+  :Close Connection
+  - Save State
+  - Cleanup;
+else (No)
+  :Continue Chat
+  - Keep Socket
+  - Persist State;
+  detach
+endif
+
+stop
+
+@enduml

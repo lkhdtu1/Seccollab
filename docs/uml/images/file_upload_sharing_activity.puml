@@ -1,0 +1,77 @@
+@startuml File_Upload_Sharing_Activity
+
+start
+
+:User Selects File
+- Browse File
+- Drag & Drop
+- Multiple Selection;
+
+if (File Size Check\n(Max 50MB)?) then (Valid)
+  :Start Upload
+  - Progress Bar
+  - Chunk Upload
+  - Error Handle;
+  
+  if (Upload Success?) then (Success)
+    :File Processing
+    - Virus Scan
+    - Metadata Ext
+    - Preview Gen;
+    
+    :Security Check
+    - File Type Valid
+    - Content Scan
+    - Permission Check;
+    
+    if (Security Passed?) then (Passed)
+      :Save to Storage
+      - DB Entry
+      - File System
+      - Activity Log;
+      
+      if (Share File?) then (Yes)
+        :Sharing Dialog
+        - Select Users
+        - Set Permissions
+        - Send Invite;
+        
+        :Create Share Record
+        - Permission Matrix
+        - Notification Send
+        - Activity Update;
+        
+      else (No)
+        :Upload Complete
+        - File Available
+        - Notify User;
+      endif
+      
+      :File Upload Complete
+      - Success Message
+      - File List Update
+      - Activity Feed;
+      
+    else (Failed)
+      :Quarantine File
+      - Security Alert
+      - Admin Notice;
+      stop
+    endif
+    
+  else (Failed)
+    :Upload Retry
+    - Error Analysis
+    - Resume Upload;
+    stop
+  endif
+  
+else (Too Large)
+  :Show Size Error
+  Suggest Compression;
+  stop
+endif
+
+stop
+
+@enduml

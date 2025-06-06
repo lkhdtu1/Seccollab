@@ -1,0 +1,70 @@
+@startuml File_Upload_Sharing_Sequence
+
+actor "File Owner" as FileOwner
+actor "Shared User" as SharedUser
+participant "Frontend\n(React)" as Frontend
+participant "File Service\n(Flask)" as FileService
+participant "Storage Service\n(GCP/Local)" as Storage
+participant "Encryption Service" as Encryption
+participant "Database\n(SQLite)" as Database
+participant "WebSocket\nService" as WebSocket
+participant "Notification\nService" as NotificationService
+
+== File Upload Process ==
+FileOwner -> Frontend: Select file for upload
+Frontend -> Frontend: Validate file type and size
+Frontend -> FileService: POST /api/files/upload\n{file, metadata}
+FileService -> FileService: Generate unique filename
+FileService -> Encryption: Encrypt file content
+Encryption --> FileService: Encrypted file data
+FileService -> Storage: Store encrypted file
+Storage --> FileService: Storage path/URL
+FileService -> Database: Create file record
+Database --> FileService: File ID
+FileService -> Database: Log upload activity
+FileService --> Frontend: {file_id, file_info}
+Frontend -> WebSocket: Emit file_update event
+WebSocket -> WebSocket: Broadcast to connected users
+Frontend --> FileOwner: Upload successful
+
+== File Sharing Process ==
+FileOwner -> Frontend: Select file to share
+Frontend -> Frontend: Show sharing dialog
+FileOwner -> Frontend: Select users and permissions
+Frontend -> FileService: POST /api/files/share\n{file_id, user_ids, permissions}
+FileService -> Database: Verify file ownership
+Database --> FileService: Ownership confirmed
+loop For each shared user
+    FileService -> Database: Create FileShare record
+    Database --> FileService: Share record created
+    FileService -> Database: Log sharing activity
+end
+FileService -> NotificationService: Send share notifications
+NotificationService -> Database: Query shared user details
+Database --> NotificationService: User information
+NotificationService -> "Email Service" as Email: Send sharing email
+Email --> NotificationService: Email sent
+FileService --> Frontend: Sharing successful
+Frontend -> WebSocket: Emit file_share event
+WebSocket -> SharedUser: Real-time share notification
+Frontend --> FileOwner: File shared successfully
+
+== File Access by Shared User ==
+SharedUser -> Frontend: View shared files
+Frontend -> FileService: GET /api/files/shared
+FileService -> Database: Query files shared with user
+Database --> FileService: Shared file list
+FileService --> Frontend: {shared_files}
+SharedUser -> Frontend: Download shared file
+Frontend -> FileService: GET /api/files/download/{file_id}
+FileService -> Database: Verify user permissions
+Database --> FileService: Permission validated
+FileService -> Storage: Retrieve encrypted file
+Storage --> FileService: Encrypted file data
+FileService -> Encryption: Decrypt file content
+Encryption --> FileService: Decrypted file data
+FileService -> Database: Log download activity
+FileService --> Frontend: File content
+Frontend --> SharedUser: File download complete
+
+@enduml

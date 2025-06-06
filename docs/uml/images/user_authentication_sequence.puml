@@ -1,0 +1,68 @@
+@startuml User_Authentication_Sequence
+
+actor User
+participant "Frontend\n(React)" as Frontend
+participant "Auth Service\n(Flask)" as AuthService
+participant "Database\n(SQLite)" as Database
+participant "JWT Service" as JWT
+participant "MFA Service" as MFA
+
+== Standard Login ==
+User -> Frontend: Enter credentials
+Frontend -> AuthService: POST /api/auth/login\n{email, password}
+AuthService -> Database: Query user by email
+Database --> AuthService: User record
+AuthService -> AuthService: Verify password hash
+AuthService -> JWT: Generate access token
+JWT --> AuthService: JWT token
+AuthService -> Database: Log login activity
+AuthService --> Frontend: {token, user_info}
+Frontend -> Frontend: Store token in localStorage
+Frontend --> User: Redirect to dashboard
+
+== MFA-Enabled Login ==
+User -> Frontend: Enter credentials
+Frontend -> AuthService: POST /api/auth/login\n{email, password}
+AuthService -> Database: Query user by email
+Database --> AuthService: User record (mfa_enabled=true)
+AuthService -> AuthService: Verify password hash
+AuthService --> Frontend: {mfa_required: true}
+Frontend --> User: Show MFA input
+User -> Frontend: Enter TOTP code
+Frontend -> AuthService: POST /api/auth/verify-mfa\n{email, totp_code}
+AuthService -> MFA: Verify TOTP code
+MFA --> AuthService: Verification result
+alt MFA Valid
+    AuthService -> JWT: Generate access token
+    JWT --> AuthService: JWT token
+    AuthService -> Database: Log successful MFA login
+    AuthService --> Frontend: {token, user_info}
+    Frontend --> User: Redirect to dashboard
+else MFA Invalid
+    AuthService -> Database: Log failed MFA attempt
+    AuthService --> Frontend: {error: "Invalid MFA code"}
+    Frontend --> User: Show error message
+end
+
+== OAuth Login ==
+User -> Frontend: Click "Login with Google"
+Frontend -> AuthService: GET /api/auth/login/google
+AuthService --> Frontend: Redirect to Google OAuth
+Frontend --> User: Redirect to Google
+User -> "Google OAuth" as Google: Authenticate
+Google --> AuthService: OAuth callback with code
+AuthService -> Google: Exchange code for user info
+Google --> AuthService: User profile data
+AuthService -> Database: Check if user exists
+alt User Exists
+    AuthService -> Database: Update OAuth info
+else New User
+    AuthService -> Database: Create new user record
+end
+AuthService -> JWT: Generate access token
+JWT --> AuthService: JWT token
+AuthService -> Database: Log OAuth login
+AuthService --> Frontend: Redirect with token
+Frontend --> User: Login successful
+
+@enduml

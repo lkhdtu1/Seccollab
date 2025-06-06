@@ -1,0 +1,101 @@
+@startuml Meeting_Scheduling_Sequence
+
+actor "Meeting Creator" as Creator
+actor "Participant 1" as Participant1
+actor "Participant 2" as Participant2
+participant "Frontend\n(React)" as Frontend
+participant "Schedule Service\n(Flask)" as ScheduleService
+participant "Database\n(SQLite)" as Database
+participant "Email Service" as EmailService
+participant "WebSocket\nService" as WebSocket
+
+== Meeting Creation ==
+Creator -> Frontend: Open schedule dialog
+Frontend -> ScheduleService: GET /api/auth/users
+ScheduleService -> Database: Query available users
+Database --> ScheduleService: User list
+ScheduleService --> Frontend: Available users
+
+Creator -> Frontend: Fill meeting details and select participants
+Frontend -> ScheduleService: POST /api/schedules\n{title, description, start_time, end_time, participants, notify_via}
+ScheduleService -> Database: Create schedule record
+Database --> ScheduleService: Schedule created with ID
+
+loop For each participant
+    ScheduleService -> Database: Create participant record (status: pending)
+    Database --> ScheduleService: Participant record created
+    
+    alt Email notification selected
+        ScheduleService -> Database: Create email notification record
+        ScheduleService -> EmailService: Send meeting invitation
+        EmailService --> ScheduleService: Email sent status
+        ScheduleService -> Database: Update notification status
+    end
+    
+    alt In-app notification selected
+        ScheduleService -> Database: Create in-app notification
+        ScheduleService -> WebSocket: Emit meeting_invitation
+        WebSocket -> "Participant Frontend": Real-time notification
+    end
+end
+
+ScheduleService -> Database: Log schedule creation activity
+ScheduleService --> Frontend: Schedule created successfully
+Frontend --> Creator: Show success message
+
+== Participant Response ==
+Participant1 -> "Participant Frontend" as ParticipantFrontend: View meeting invitation
+ParticipantFrontend -> ScheduleService: GET /api/schedules
+ScheduleService -> Database: Query user's schedules
+Database --> ScheduleService: Schedule list (including pending)
+ScheduleService --> ParticipantFrontend: Meeting invitations
+
+Participant1 -> ParticipantFrontend: Accept meeting invitation
+ParticipantFrontend -> ScheduleService: POST /api/schedules/{schedule_id}/respond\n{status: "accepted"}
+ScheduleService -> Database: Update participant status
+Database --> ScheduleService: Status updated
+ScheduleService -> Database: Log response activity
+ScheduleService -> WebSocket: Emit schedule_response
+WebSocket -> Frontend: Notify creator of response
+ScheduleService --> ParticipantFrontend: Response recorded
+
+== Meeting Cancellation ==
+Creator -> Frontend: Cancel meeting
+Frontend -> ScheduleService: DELETE /api/schedules/{schedule_id}
+ScheduleService -> Database: Verify creator permissions
+Database --> ScheduleService: Permission confirmed
+ScheduleService -> Database: Mark schedule as cancelled
+ScheduleService -> Database: Query all participants
+Database --> ScheduleService: Participant list
+
+loop For each participant
+    ScheduleService -> EmailService: Send cancellation email
+    EmailService --> ScheduleService: Email sent
+    ScheduleService -> WebSocket: Emit meeting_cancelled
+    WebSocket -> "Participant Frontend": Real-time cancellation notice
+end
+
+ScheduleService -> Database: Log cancellation activity
+ScheduleService --> Frontend: Meeting cancelled
+Frontend --> Creator: Cancellation confirmed
+
+== Schedule Listing and Updates ==
+Participant2 -> ParticipantFrontend: View upcoming meetings
+ParticipantFrontend -> ScheduleService: GET /api/schedules
+ScheduleService -> Database: Query user's schedules\n(created + participating)
+Database --> ScheduleService: Schedule list with details
+ScheduleService --> ParticipantFrontend: Formatted schedule data
+
+note right of ScheduleService
+  Schedules include:
+  - Meeting details
+  - Participant list with status
+  - Creator information
+  - Response status for current user
+end note
+
+ParticipantFrontend -> WebSocket: Listen for schedule updates
+WebSocket -> ParticipantFrontend: Real-time schedule changes
+ParticipantFrontend -> ParticipantFrontend: Update UI automatically
+
+@enduml

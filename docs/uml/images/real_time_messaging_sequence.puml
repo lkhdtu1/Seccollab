@@ -1,0 +1,89 @@
+@startuml Real_time_Messaging_Sequence
+
+actor "User A" as UserA
+actor "User B" as UserB
+participant "Frontend A\n(React)" as FrontendA
+participant "Frontend B\n(React)" as FrontendB
+participant "Message Service\n(Flask)" as MessageService
+participant "WebSocket\nService" as WebSocket
+participant "Database\n(SQLite)" as Database
+
+== WebSocket Connection Setup ==
+UserA -> FrontendA: Login to application
+FrontendA -> WebSocket: Connect with JWT token
+WebSocket -> WebSocket: Verify JWT token
+WebSocket -> WebSocket: Join user room (user_A)
+WebSocket --> FrontendA: Connection established
+
+UserB -> FrontendB: Login to application
+FrontendB -> WebSocket: Connect with JWT token
+WebSocket -> WebSocket: Verify JWT token
+WebSocket -> WebSocket: Join user room (user_B)
+WebSocket --> FrontendB: Connection established
+
+== Direct Message Exchange ==
+UserA -> FrontendA: Open chat with User B
+FrontendA -> MessageService: GET /api/messages/{user_B_id}
+MessageService -> Database: Query message history
+Database --> MessageService: Message list
+MessageService --> FrontendA: Chat history
+
+UserA -> FrontendA: Type and send message
+FrontendA -> MessageService: POST /api/messages/send\n{receiver_id, content, type}
+MessageService -> Database: Save message
+Database --> MessageService: Message saved with ID
+MessageService -> WebSocket: Emit to user_B room
+WebSocket -> FrontendB: new_message event
+FrontendB -> FrontendB: Update chat UI
+MessageService --> FrontendA: Message sent confirmation
+FrontendA -> FrontendA: Update chat UI
+
+== File-based Discussion ==
+UserA -> FrontendA: Open file discussion
+FrontendA -> MessageService: GET /api/files/{file_id}/messages
+MessageService -> Database: Query file messages
+Database --> MessageService: File message list
+MessageService --> FrontendA: File discussion history
+
+UserA -> FrontendA: Post comment on file
+FrontendA -> MessageService: POST /api/files/{file_id}/messages\n{content}
+MessageService -> Database: Save file message
+Database --> MessageService: Message saved
+MessageService -> Database: Query users with file access
+Database --> MessageService: User list
+loop For each user with file access
+    MessageService -> WebSocket: Emit file_message_update
+    WebSocket -> "Frontend X": Update file discussion
+end
+MessageService --> FrontendA: Comment posted
+
+== Media Message Upload ==
+UserA -> FrontendA: Select image/video to send
+FrontendA -> MessageService: POST /api/messages/upload\n{file, receiver_id}
+MessageService -> "Storage Service" as Storage: Upload media file
+Storage --> MessageService: File URL
+MessageService -> Database: Save message with media
+Database --> MessageService: Message saved
+MessageService -> WebSocket: Emit media message
+WebSocket -> FrontendB: new_message event (with media)
+FrontendB -> FrontendB: Display media in chat
+MessageService --> FrontendA: Media sent confirmation
+
+== Presence and Typing Indicators ==
+UserA -> FrontendA: Start typing message
+FrontendA -> WebSocket: typing_start event
+WebSocket -> FrontendB: Show typing indicator
+FrontendB -> FrontendB: Display "User A is typing..."
+
+UserA -> FrontendA: Stop typing (after timeout)
+FrontendA -> WebSocket: typing_stop event
+WebSocket -> FrontendB: Hide typing indicator
+FrontendB -> FrontendB: Remove typing indicator
+
+UserA -> FrontendA: Close chat or go inactive
+FrontendA -> WebSocket: user_away event
+WebSocket -> WebSocket: Update user status
+WebSocket -> FrontendB: presence_update event
+FrontendB -> FrontendB: Update user status (away)
+
+@enduml

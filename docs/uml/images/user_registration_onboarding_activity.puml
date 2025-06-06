@@ -1,0 +1,59 @@
+@startuml User_Registration_Onboarding_Activity
+
+start
+
+:User Registration Process Start;
+
+:Fill Registration Form
+- Email
+- Name  
+- Password
+- Captcha;
+
+if (Validate Input?) then (Valid)
+  :Create Account
+  - Hash Password
+  - Generate JWT
+  - Send Welcome;
+  
+  :Email Verification
+  - Send Verify Link
+  - Set Account Status;
+  
+  if (Account Verified?) then (Yes)
+    :Welcome to Hub
+    - Setup Profile
+    - Initial Tour;
+    
+    if (Setup MFA?) then (Yes)
+      :MFA Setup Flow
+      - QR Code Gen
+      - Code Verify
+      - Backup Codes;
+    else (No)
+      :Complete Setup
+      - Default Prefs
+      - Access Granted;
+    endif
+    
+  else (No)
+    :Resend Verify
+    - Timeout Check
+    - Manual Verify;
+    stop
+  endif
+  
+  :Registration Complete
+  - Profile Created
+  - Preferences Set
+  - Access Granted;
+  
+else (Invalid)
+  :Show Error
+  Return to Form;
+  stop
+endif
+
+stop
+
+@enduml

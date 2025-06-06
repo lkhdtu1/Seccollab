@@ -1,0 +1,153 @@
+@startuml SecCollab_Use_Case_Diagram
+
+' Define Actors
+actor "Registered User" as RegisteredUser
+actor "Guest User" as GuestUser
+actor "Admin" as Admin
+actor "File Owner" as FileOwner
+actor "Schedule Creator" as ScheduleCreator
+actor "Email System" as EmailSystem
+actor "OAuth Provider" as OAuthProvider
+actor "Cloud Storage" as CloudStorage
+
+' Authentication Use Cases
+package "Authentication System" {
+    usecase "Register Account" as UC_Register
+    usecase "Login" as UC_Login
+    usecase "OAuth Login" as UC_OAuth
+    usecase "Multi-Factor Auth" as UC_MFA
+    usecase "Logout" as UC_Logout
+    usecase "Forgot Password" as UC_ForgotPassword
+    usecase "Change Password" as UC_ChangePassword
+}
+
+' File Management Use Cases
+package "File Management System" {
+    usecase "Upload File" as UC_UploadFile
+    usecase "Download File" as UC_DownloadFile
+    usecase "Share File" as UC_ShareFile
+    usecase "Manage Permissions" as UC_ManagePermissions
+    usecase "Delete File" as UC_DeleteFile
+    usecase "View Files" as UC_ViewFiles
+    usecase "Search Files" as UC_SearchFiles
+    usecase "Track File Activity" as UC_FileActivity
+}
+
+' Communication Use Cases
+package "Communication System" {
+    usecase "Send Message" as UC_SendMessage
+    usecase "File Discussion" as UC_FileDiscussion
+    usecase "View Messages" as UC_ViewMessages
+    usecase "Upload Media" as UC_UploadMedia
+    usecase "Real-time Notifications" as UC_RealTimeNotify
+}
+
+' Scheduling Use Cases
+package "Scheduling System" {
+    usecase "Create Schedule" as UC_CreateSchedule
+    usecase "View Schedules" as UC_ViewSchedules
+    usecase "Respond to Invite" as UC_RespondInvite
+    usecase "Cancel Schedule" as UC_CancelSchedule
+    usecase "Send Notifications" as UC_SendNotifications
+}
+
+' User Management Use Cases
+package "User Management System" {
+    usecase "Manage Profile" as UC_ManageProfile
+    usecase "View Users" as UC_ViewUsers
+    usecase "Track Activity" as UC_TrackActivity
+    usecase "Manage Sessions" as UC_ManageSessions
+}
+
+' Security & Audit Use Cases
+package "Security & Audit System" {
+    usecase "Monitor Security" as UC_MonitorSecurity
+    usecase "Audit Actions" as UC_AuditActions
+    usecase "Manage Permissions" as UC_SecurityPermissions
+    usecase "View Logs" as UC_ViewLogs
+    usecase "Security Reports" as UC_SecurityReports
+}
+
+' Real-time System Use Cases
+package "Real-time System" {
+    usecase "WebSocket Connection" as UC_WebSocket
+    usecase "Live Updates" as UC_LiveUpdates
+    usecase "Presence Tracking" as UC_PresenceTracking
+    usecase "Collaborative Editing" as UC_CollaborativeEditing
+}
+
+' Actor Relationships
+RegisteredUser --|> GuestUser
+FileOwner --|> RegisteredUser
+ScheduleCreator --|> RegisteredUser
+Admin --|> RegisteredUser
+
+' Authentication System Relationships
+GuestUser --> UC_Register
+GuestUser --> UC_Login
+GuestUser --> UC_OAuth
+GuestUser --> UC_ForgotPassword
+RegisteredUser --> UC_MFA
+RegisteredUser --> UC_Logout
+RegisteredUser --> UC_ChangePassword
+
+' File Management System Relationships
+RegisteredUser --> UC_UploadFile
+RegisteredUser --> UC_DownloadFile
+RegisteredUser --> UC_ViewFiles
+RegisteredUser --> UC_SearchFiles
+FileOwner --> UC_ShareFile
+FileOwner --> UC_ManagePermissions
+FileOwner --> UC_DeleteFile
+RegisteredUser --> UC_FileActivity
+
+' Communication System Relationships
+RegisteredUser --> UC_SendMessage
+RegisteredUser --> UC_FileDiscussion
+RegisteredUser --> UC_ViewMessages
+RegisteredUser --> UC_UploadMedia
+RegisteredUser --> UC_RealTimeNotify
+
+' Scheduling System Relationships
+ScheduleCreator --> UC_CreateSchedule
+RegisteredUser --> UC_ViewSchedules
+RegisteredUser --> UC_RespondInvite
+ScheduleCreator --> UC_CancelSchedule
+EmailSystem --> UC_SendNotifications
+
+' User Management System Relationships
+RegisteredUser --> UC_ManageProfile
+RegisteredUser --> UC_ViewUsers
+Admin --> UC_TrackActivity
+Admin --> UC_ManageSessions
+
+' Security & Audit System Relationships
+Admin --> UC_MonitorSecurity
+Admin --> UC_AuditActions
+Admin --> UC_SecurityPermissions
+Admin --> UC_ViewLogs
+Admin --> UC_SecurityReports
+
+' Real-time System Relationships
+RegisteredUser --> UC_WebSocket
+RegisteredUser --> UC_LiveUpdates
+RegisteredUser --> UC_PresenceTracking
+RegisteredUser --> UC_CollaborativeEditing
+
+' External System Relationships
+UC_OAuth --> OAuthProvider
+UC_SendNotifications --> EmailSystem
+UC_UploadFile --> CloudStorage
+UC_DownloadFile --> CloudStorage
+
+' Include and Extend Relationships
+UC_Login ..> UC_MFA : <<include>>
+UC_OAuth ..> UC_MFA : <<include>>
+UC_ShareFile ..> UC_ManagePermissions : <<include>>
+UC_CreateSchedule ..> UC_SendNotifications : <<include>>
+UC_CancelSchedule ..> UC_SendNotifications : <<include>>
+UC_UploadFile ..> UC_FileActivity : <<include>>
+UC_DownloadFile ..> UC_FileActivity : <<include>>
+UC_DeleteFile ..> UC_FileActivity : <<include>>
+
+@enduml

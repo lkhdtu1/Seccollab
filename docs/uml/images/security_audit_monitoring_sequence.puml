@@ -1,0 +1,90 @@
+@startuml Security_Audit_Monitoring_Sequence
+
+actor Admin
+actor "Regular User" as User
+participant "Frontend\n(React)" as Frontend
+participant "Security Service\n(Flask)" as SecurityService
+participant "Audit Service\n(Flask)" as AuditService
+participant "Database\n(SQLite)" as Database
+participant "File Scanner" as Scanner
+participant "Rate Limiter" as RateLimit
+
+== Security Monitoring ==
+User -> Frontend: Attempt multiple failed logins
+Frontend -> SecurityService: POST /api/auth/login (failed attempts)
+SecurityService -> RateLimit: Check attempt count
+RateLimit --> SecurityService: Rate limit exceeded
+SecurityService -> Database: Log security violation
+Database --> SecurityService: Violation logged
+SecurityService --> Frontend: Account temporarily locked
+Frontend --> User: Show lockout message
+
+== File Security Scan ==
+Admin -> Frontend: Initiate security scan
+Frontend -> SecurityService: POST /api/audit/security-scan/{file_id}
+SecurityService -> Database: Verify admin privileges
+Database --> SecurityService: Admin confirmed
+SecurityService -> Database: Retrieve file information
+Database --> SecurityService: File metadata
+SecurityService -> Scanner: Analyze file content
+Scanner -> Scanner: Check for malware/threats
+Scanner --> SecurityService: Scan results
+SecurityService -> Database: Log scan results
+SecurityService --> Frontend: Security report
+Frontend --> Admin: Display scan results
+
+== Audit Log Review ==
+Admin -> Frontend: Access audit logs
+Frontend -> AuditService: GET /api/admin/logs?filters
+AuditService -> Database: Verify admin privileges
+Database --> AuditService: Admin confirmed
+AuditService -> Database: Query audit logs with filters
+Database --> AuditService: Filtered log entries
+AuditService --> Frontend: Audit log data
+Frontend --> Admin: Display audit interface
+
+== Integrity Verification ==
+Admin -> Frontend: Check file integrity
+Frontend -> SecurityService: GET /api/audit/integrity-check/{file_id}
+SecurityService -> Database: Retrieve file hash
+Database --> SecurityService: Original file hash
+SecurityService -> "Storage Service" as Storage: Retrieve current file
+Storage --> SecurityService: Current file data
+SecurityService -> SecurityService: Calculate current hash
+SecurityService -> SecurityService: Compare hashes
+alt Integrity Valid
+    SecurityService -> Database: Log integrity check (passed)
+    SecurityService --> Frontend: File integrity confirmed
+else Integrity Compromised
+    SecurityService -> Database: Log integrity violation
+    SecurityService -> Database: Flag file as compromised
+    SecurityService --> Frontend: Integrity violation detected
+    Frontend --> Admin: Alert of compromised file
+end
+
+== User Activity Monitoring ==
+User -> Frontend: Perform various actions
+Frontend -> SecurityService: API calls with JWT
+SecurityService -> Database: Log all user actions
+Database --> SecurityService: Actions logged
+
+Admin -> Frontend: View user activity
+Frontend -> AuditService: GET /api/audit/user-activity?user_id
+AuditService -> Database: Query user's activity logs
+Database --> AuditService: Activity history
+AuditService --> Frontend: User activity timeline
+Frontend --> Admin: Display activity report
+
+== Automated Security Alerts ==
+SecurityService -> SecurityService: Monitor for suspicious patterns
+SecurityService -> Database: Query recent activities
+Database --> SecurityService: Activity data
+SecurityService -> SecurityService: Analyze for anomalies
+alt Suspicious Activity Detected
+    SecurityService -> Database: Create security alert
+    SecurityService -> "Alert Service" as AlertService: Send admin notification
+    AlertService -> Admin: Security alert notification
+    SecurityService -> Database: Log security event
+end
+
+@enduml

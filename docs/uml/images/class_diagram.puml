@@ -1,0 +1,230 @@
+@startuml SecCollab_Class_Diagram
+
+' Core User Management
+class User {
+    +id: Integer [PK]
+    +email: String [UNIQUE]
+    +name: String
+    +password: String [HASHED]
+    +is_active: Integer
+    +mfa_enabled: Boolean
+    +mfa_secret: String
+    +google_id: String
+    +avatar_url: String
+    +oauth_provider: String
+    +profile_image: LargeBinary
+    +created_at: DateTime
+    +updated_at: DateTime
+    --
+    +check_password(password): Boolean
+    +set_password(password): Void
+    +to_dict(): Dict
+}
+
+' File Management System
+class File {
+    +id: Integer [PK]
+    +name: String
+    +storage_path: String
+    +size: Integer
+    +mime_type: String
+    +encrypted: Boolean
+    +owner_id: Integer [FK]
+    +created_at: DateTime
+    +updated_at: DateTime
+    --
+    +to_dict(): Dict
+    +get_activities(): List<Activity>
+    +get_messages(): List<Message>
+}
+
+' File Sharing System
+class FileShare {
+    +id: Integer [PK]
+    +file_id: Integer [FK]
+    +user_id: Integer [FK]
+    +permission: Enum [read, write]
+    +created_at: DateTime
+    --
+    +to_dict(): Dict
+}
+
+' File Activity Tracking
+class Activity {
+    +id: Integer [PK]
+    +file_id: Integer [FK]
+    +user_id: Integer [FK]
+    +type: Enum [upload, download, share, comment]
+    +description: String
+    +created_at: DateTime
+    --
+    +to_dict(): Dict
+}
+
+' File-based Messaging
+class Message {
+    +id: Integer [PK]
+    +file_id: Integer [FK]
+    +user_id: Integer [FK]
+    +content: Text
+    +created_at: DateTime
+    --
+    +to_dict(): Dict
+}
+
+' Scheduling System
+class Schedule {
+    +id: String [PK]
+    +title: String
+    +description: Text
+    +start_time: DateTime
+    +end_time: DateTime
+    +creator_id: Integer [FK]
+    +created_at: DateTime
+    +updated_at: DateTime
+    --
+    +to_dict(): Dict
+    +get_participants(): List<ScheduleParticipant>
+}
+
+class ScheduleParticipant {
+    +id: String [PK]
+    +schedule_id: String [FK]
+    +user_id: Integer [FK]
+    +status: Enum [pending, accepted, declined]
+    +created_at: DateTime
+    --
+    +to_dict(): Dict
+}
+
+class ScheduleNotification {
+    +id: String [PK]
+    +schedule_id: String [FK]
+    +user_id: Integer [FK]
+    +type: Enum [email, in_app]
+    +status: Enum [pending, sent, failed]
+    +created_at: DateTime
+    --
+    +to_dict(): Dict
+}
+
+' Real-time Chat System
+class Chat {
+    +id: String [PK]
+    +sender_id: Integer [FK]
+    +receiver_id: Integer [FK]
+    +content: Text
+    +content_type: Enum [text, image, video]
+    +file_url: String
+    +file_name: String
+    +created_at: DateTime
+    --
+    +to_dict(): Dict
+}
+
+' Active User Tracking
+class ActiveUser {
+    +id: Integer [PK]
+    +user_id: Integer [FK]
+    +file_id: Integer [FK]
+    +last_active: DateTime
+    +status: Enum [online, away, offline]
+    --
+    +to_dict(): Dict
+}
+
+' Audit and Logging
+class Log {
+    +id: Integer [PK]
+    +action: String
+    +user_id: Integer [FK]
+    +details: Text
+    +ip_address: String
+    +timestamp: DateTime
+    --
+    +to_dict(): Dict
+}
+
+' Service Classes
+class AuthService <<Service>> {
+    +register_user(email, name, password): User
+    +login_user(email, password): Token
+    +verify_token(token): User
+    +setup_mfa(user): String
+    +verify_mfa(user, code): Boolean
+    +oauth_login(provider, code): User
+    +forgot_password(email): Boolean
+    +reset_password(token, password): Boolean
+}
+
+class FileService <<Service>> {
+    +upload_file(file, user): File
+    +download_file(file_id, user): FileData
+    +share_file(file_id, user_id, permission): FileShare
+    +delete_file(file_id, user): Boolean
+    +encrypt_file(file_data): EncryptedData
+    +decrypt_file(encrypted_data): FileData
+    +list_user_files(user): List<File>
+    +get_shared_files(user): List<File>
+}
+
+class SchedulingService <<Service>> {
+    +create_schedule(data, creator): Schedule
+    +list_schedules(user): List<Schedule>
+    +respond_to_schedule(schedule_id, user, status): Boolean
+    +cancel_schedule(schedule_id, user): Boolean
+    +send_notifications(schedule, type): Boolean
+}
+
+class MessagingService <<Service>> {
+    +send_message(sender, receiver, content): Chat
+    +get_messages(user1, user2): List<Chat>
+    +upload_media_message(sender, receiver, file): Chat
+    +send_file_message(file_id, user, content): Message
+    +get_file_messages(file_id): List<Message>
+}
+
+class SecurityService <<Service>> {
+    +hash_password(password): String
+    +check_password(password, hash): Boolean
+    +generate_token(user): String
+    +verify_token(token): User
+    +log_action(action, user, details): Log
+    +check_permissions(user, resource): Boolean
+    +audit_access(user, action, details): Void
+}
+
+' Relationships
+User ||--o{ File : owns
+User ||--o{ FileShare : shares
+User ||--o{ Activity : performs
+User ||--o{ Message : writes
+User ||--o{ Schedule : creates
+User ||--o{ ScheduleParticipant : participates
+User ||--o{ ScheduleNotification : receives
+User ||--o{ Chat : sends/receives
+User ||--o{ ActiveUser : tracks
+User ||--o{ Log : generates
+
+File ||--o{ FileShare : shared_via
+File ||--o{ Activity : tracked_by
+File ||--o{ Message : discussed_in
+File ||--o{ ActiveUser : accessed_by
+
+Schedule ||--o{ ScheduleParticipant : has
+Schedule ||--o{ ScheduleNotification : triggers
+
+' Service Dependencies
+AuthService ..> User : manages
+FileService ..> File : manages
+FileService ..> FileShare : manages
+FileService ..> Activity : logs
+SchedulingService ..> Schedule : manages
+SchedulingService ..> ScheduleParticipant : manages
+SchedulingService ..> ScheduleNotification : manages
+MessagingService ..> Chat : manages
+MessagingService ..> Message : manages
+SecurityService ..> Log : creates
+SecurityService ..> User : authenticates
+
+@enduml

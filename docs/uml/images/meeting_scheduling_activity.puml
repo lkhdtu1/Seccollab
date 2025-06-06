@@ -1,0 +1,99 @@
+@startuml Meeting_Scheduling_Activity
+
+start
+
+:Create Meeting
+- Click Schedule
+- Open Dialog
+- Load Participants;
+
+:Fill Meeting Details
+- Title & Description
+- Date & Time
+- Duration;
+
+:Select Participants
+- Browse Users
+- Search Filter
+- Multi-select;
+
+if (Time Conflict Check?) then (No Conflict)
+  :Set Notification Preferences
+  - Email
+  - In-App
+  - SMS;
+  
+  :Create Schedule
+  - Save to Database
+  - Generate ICS
+  - Set Reminders;
+  
+  fork
+    :For Each Participant;
+    
+    :Send Invitation
+    - Email Invite
+    - In-App Notice
+    - Calendar Entry;
+    
+    :Create Participant Record
+    - Status: Pending
+    - Notification Sent;
+    
+  end fork
+  
+  :Schedule Created
+  - Success Message
+  - Calendar Update
+  - Activity Log;
+  
+  fork
+    :Participant Receives Invite;
+    
+    switch (Response Action?)
+    case (Accept)
+      :Accept Status;
+    case (Decline)
+      :Decline Status;
+    case (Maybe)
+      :Wait;
+    endswitch
+    
+    :Update Database
+    - Participant Status
+    - Notification Sent
+    - Activity Log;
+    
+    :Notify Organizer
+    - Status Change
+    - Updated Count
+    - Meeting Viability;
+    
+  end fork
+  
+  if (All Responses In?) then (Yes)
+    :Final Confirm
+    - Meeting Valid
+    - Send Updates
+    - Set Reminders;
+  else (No/Timeout)
+    :Send Reminders
+    - Follow Up
+    - Status Check;
+  endif
+  
+  :Meeting Scheduled
+  - All Notifications
+  - Calendar Entries
+  - Reminder Set;
+  
+else (Conflict Found)
+  :Show Conflicts
+  - Suggest Times
+  - Reschedule;
+  stop
+endif
+
+stop
+
+@enduml
